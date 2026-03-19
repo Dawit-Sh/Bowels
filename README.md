@@ -1,50 +1,64 @@
-# Welcome to your Expo app 👋
+# Bowels
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Privacy-first gut health tracker (Expo + React Native, TypeScript). Local-first storage (SQLite) and tap-only inputs.
 
-## Get started
+## Users
 
-1. Install dependencies
+- Home → **Start Session** → timer runs → **Finish**
+- Answer quick tap-only questions (max 5)
+- View History, Analytics, Insights, Weekly Wrapped
+- Settings: theme, notifications, export
 
-   ```bash
-   npm install
-   ```
+## Developers
 
-2. Start the app
+### Requirements
 
-   ```bash
-   npx expo start
-   ```
+- Node.js (LTS recommended)
+- Expo CLI via `npx expo`
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Setup
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Notes:
+- Notification action buttons (Open/Finish/Cancel) work best in a **development build** (Expo Go on Android has limitations).
 
-## Learn more
+### Scripts
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm run lint
+npm run typecheck
+npm run build:apk   # EAS preview universal APK
+npm run build:aab   # EAS production Android App Bundle
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Structure
 
-## Join the community
+- `app/` Expo Router routes
+- `screens/` screen implementations
+- `components/` UI + illustrations
+- `db/` SQLite schema + queries
+- `store/` Zustand state
+- `utils/` notifications, exports, insights, wrapped
 
-Join our community of developers creating universal apps.
+## Contributing
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+See `CONTRIBUTING.md`.
+
+## GitHub Releases (auto-attach APK)
+
+This repo includes a workflow that can build an APK on tag push and attach it to a GitHub Release.
+
+1) Create an Expo access token and add it to GitHub repo secrets:
+- `EXPO_TOKEN`
+
+2) Tag and push:
+
+```bash
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin vX.Y.Z
+```
+

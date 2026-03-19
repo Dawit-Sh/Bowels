@@ -5,6 +5,7 @@ node_modules/
 
 # Expo
 .expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
@@ -25,6 +26,8 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+*.log.*
 
 # macOS
 .DS_Store
@@ -41,3 +44,16 @@ app-example
 # generated native folders
 /ios
 /android
+
+# caches
+.npm-cache/
+.eslintcache
+
+# editors
+.idea/
+.vscode/
+
+# build artifacts
+artifacts/
+*.apk
+*.aab
