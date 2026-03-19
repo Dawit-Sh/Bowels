@@ -24,15 +24,29 @@ export function HealthInfoScreen() {
 
       <Card>
         <Text style={{ color: theme.colors.textPrimary, fontWeight: '900', marginBottom: 8 }}>Bristol stool chart</Text>
-        <View style={{ gap: 8 }}>
-          {BRISTOL.map((b) => (
-            <View key={b.type} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-              <Text style={{ color: theme.colors.textPrimary, fontWeight: '900' }}>Type {b.type}</Text>
-              <Text style={{ color: theme.colors.textSecondary, fontWeight: '700', flex: 1, textAlign: 'right' }}>
-                {b.label}
-              </Text>
-            </View>
-          ))}
+        <View style={{ gap: 12 }}>
+          {BRISTOL.map((b) => {
+            const typeStr = String(b.type);
+            const isIdeal = typeStr === '3' || typeStr === '4';
+            return (
+              <View key={b.type} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{
+                  width: 32, height: 32, borderRadius: 16, 
+                  backgroundColor: isIdeal ? theme.colors.accent : 'transparent',
+                  borderWidth: isIdeal ? 0 : 2,
+                  borderColor: theme.colors.border,
+                  justifyContent: 'center', alignItems: 'center'
+                }}>
+                  <Text style={{ color: isIdeal ? '#ffffff' : theme.colors.textPrimary, fontWeight: '900' }}>
+                    {b.type}
+                  </Text>
+                </View>
+                <Text style={{ color: theme.colors.textSecondary, fontWeight: '700', flex: 1 }}>
+                  {b.label}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       </Card>
 

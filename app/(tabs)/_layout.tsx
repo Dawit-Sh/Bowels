@@ -55,6 +55,20 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="gearshape.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="badges"
+        options={{
+          title: 'Badges',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="star.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="predictions"
+        options={{
+          title: 'Predict',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="bolt.fill" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

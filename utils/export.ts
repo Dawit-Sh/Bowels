@@ -1,5 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
+import { Alert } from 'react-native';
+
+import { getDb } from '@/db/client';
 
 import { listAllDailyHealth, listAllSessionAnswers, listAllSettings, listSessions } from '@/db/queries';
 import { isoNow } from '@/utils/datetime';
@@ -57,4 +61,71 @@ export async function exportData(kind: 'json' | 'csv'): Promise<void> {
   const path = `${FileSystem.cacheDirectory ?? ''}bowels-export-${Date.now()}.csv`;
   await FileSystem.writeAsStringAsync(path, csv);
   if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(path);
+}
+
+export async function importData(): Promise<void> {
+  try {
+    const res = await DocumentPicker.getDocumentAsync({
+      type: 'application/json',
+      copyToCacheDirectory: true,
+    });
+    if (res.canceled) return;
+
+    const uri = res.assets[0].uri;
+    const contents = await FileSystem.readAsStringAsync(uri);
+    const data = JSON.parse(contents);
+
+    if (!data.exported_at || !Array.isArray(data.sessions) || !Array.isArray(data.session_answers)) {
+      Alert.alert('Invalid Backup', 'The selected JSON is not a valid Bowels backup file.');
+      return;
+    }
+
+    Alert.alert(
+      'Restore Data',
+      `This will completely replace all existing data with the backup from ${new Date(data.exported_at).toLocaleDateString()}. Proceed?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore', style: 'destructive', onPress: async () => {
+            try {
+              const db = await getDb();
+              await db.withTransactionAsync(async () => {
+                await db.runAsync('DELETE FROM sessions;');
+                await db.runAsync('DELETE FROM session_answers;');
+                await db.runAsync('DELETE FROM daily_health;');
+
+                for (const s of data.sessions) {
+                  await db.runAsync(
+                    'INSERT INTO sessions(id, start_time, end_time, duration_seconds, type, date_key, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?)',
+                    [s.id, s.start_time, s.end_time || null, s.duration_seconds || null, s.type || null, s.date_key, isoNow(), isoNow()]
+                  );
+                }
+
+                for (const a of data.session_answers) {
+                  await db.runAsync(
+                    'INSERT INTO session_answers(id, session_id, question_key, value, created_at) VALUES(?,?,?,?,?)',
+                    [a.id, a.session_id, a.question_key, a.value, isoNow()]
+                  );
+                }
+
+                if (Array.isArray(data.daily_health)) {
+                  for (const h of data.daily_health) {
+                    await db.runAsync(
+                      'INSERT INTO daily_health(date_key, water, fiber, meals, stress, sleep, exercise, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?)',
+                      [h.date_key, h.water || null, h.fiber || null, h.meals || null, h.stress || null, h.sleep || null, h.exercise || null, isoNow(), isoNow()]
+                    );
+                  }
+                }
+              });
+              Alert.alert('Success', 'Data restored successfully!');
+            } catch (err: any) {
+              Alert.alert('Restore Failed', err.message);
+            }
+          }
+        }
+      ]
+    );
+  } catch (err: any) {
+    Alert.alert('Import Failed', err.message);
+  }
 }

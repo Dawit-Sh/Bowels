@@ -11,7 +11,19 @@ export type IconSymbolName =
   | 'person.circle'
   | 'bell'
   | 'chevron.left'
-  | 'chevron.right';
+  | 'chevron.right'
+  | 'star.fill'
+  | 'bolt.fill'
+  | 'drop.circle.fill'
+  | 'leaf.fill'
+  | 'star.circle.fill'
+  | 'crown.fill'
+  | 'figure.walk.circle.fill'
+  | 'sun.max.fill'
+  | 'drop.fill'
+  | 'brain.head.profile'
+  | 'scale.3d'
+  | 'flame.fill';
 
 type IconMapping = Record<IconSymbolName, ComponentProps<typeof MaterialIcons>['name']>;
 
@@ -29,6 +41,18 @@ const MAPPING = {
   bell: 'notifications-none',
   'chevron.left': 'chevron-left',
   'chevron.right': 'chevron-right',
+  'star.fill': 'star',
+  'bolt.fill': 'bolt',
+  'drop.circle.fill': 'water-drop',
+  'leaf.fill': 'eco',
+  'star.circle.fill': 'stars',
+  'crown.fill': 'emoji-events',
+  'figure.walk.circle.fill': 'directions-walk',
+  'sun.max.fill': 'wb-sunny',
+  'drop.fill': 'water-drop',
+  'brain.head.profile': 'psychology',
+  'scale.3d': 'balance',
+  'flame.fill': 'local-fire-department',
 } as IconMapping;
 
 /**

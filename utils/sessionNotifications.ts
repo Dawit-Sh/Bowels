@@ -4,6 +4,8 @@ import Constants from 'expo-constants';
 import { deleteSession, finishSession, settingsGet, settingsSet } from '@/db/queries';
 import { formatMmSs, isoNow } from '@/utils/datetime';
 
+import * as TaskManager from 'expo-task-manager';
+
 type ExpoNotificationsModule = typeof import('expo-notifications');
 
 const IDS_KEY = 'session_notif_ids_v1';
@@ -45,7 +47,9 @@ export async function maybeShowSessionNotification({
   if (stored.activeId) await safeDismiss(Notifications, stored.activeId);
 
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(startTimeIso).getTime()) / 1000));
-  const id = await Notifications.scheduleNotificationAsync({
+  const id = 'ACTIVE_SESSION_NOTIF';
+  await Notifications.scheduleNotificationAsync({
+    identifier: id,
     content: {
       title: 'Bowels — session running',
       body: `Elapsed ${formatMmSs(elapsed)} • Tap Open to return`,
@@ -123,4 +127,36 @@ async function safeDismiss(Notifications: ExpoNotificationsModule, id: string): 
   } catch {
     // ignore
   }
+}
+
+const BG_NOTIF_TASK = 'BG_NOTIF_TASK';
+
+TaskManager.defineTask(BG_NOTIF_TASK, async ({ data, error }) => {
+  if (error) return;
+  const { actionIdentifier, notification } = data as any;
+  const d = notification?.request?.content?.data ?? {};
+  if (d.kind !== 'session') return;
+
+  const sessionId = Number(d.sessionId ?? 0);
+  const startTimeIso = String(d.startTimeIso ?? '');
+  if (!sessionId) return;
+
+  if (actionIdentifier === 'FINISH_SESSION') {
+    const end = isoNow();
+    const elapsed = Math.max(0, Math.floor((Date.now() - new Date(startTimeIso).getTime()) / 1000));
+    await finishSession(sessionId, end, elapsed);
+    await dismissSessionNotification();
+  }
+
+  if (actionIdentifier === 'CANCEL_SESSION') {
+    await deleteSession(sessionId);
+    await dismissSessionNotification();
+  }
+});
+
+export function registerBackgroundNotificationTask(): void {
+  if (isExpoGo()) return;
+  getNotifications().then((n) => {
+    n.registerTaskAsync(BG_NOTIF_TASK).catch(() => {});
+  });
 }

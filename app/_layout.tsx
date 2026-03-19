@@ -3,17 +3,27 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { View } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
 import 'react-native-reanimated';
 
 import { AppBootstrap } from '@/screens/AppBootstrap';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
+import { registerBackgroundNotificationTask } from '@/utils/sessionNotifications';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // no-op
 });
 
+registerBackgroundNotificationTask();
+
 function NavigationThemeBridge({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
+
+  React.useEffect(() => {
+    SystemUI.setBackgroundColorAsync(theme.colors.background).catch(() => {});
+  }, [theme.colors.background]);
+
   return (
     <NavThemeProvider
       value={{
@@ -33,7 +43,9 @@ function NavigationThemeBridge({ children }: { children: React.ReactNode }) {
           heavy: { fontFamily: 'System', fontWeight: '800' },
         },
       }}>
-      {children}
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        {children}
+      </View>
     </NavThemeProvider>
   );
 }
@@ -50,6 +62,7 @@ export default function RootLayout() {
             <Stack.Screen name="session/questions" options={{ presentation: 'modal' }} />
             <Stack.Screen name="session/summary" options={{ presentation: 'modal' }} />
             <Stack.Screen name="wrapped" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="wrapped-yearly" options={{ presentation: 'modal' }} />
             <Stack.Screen name="health-info" options={{ presentation: 'modal' }} />
           </Stack>
         </AppBootstrap>

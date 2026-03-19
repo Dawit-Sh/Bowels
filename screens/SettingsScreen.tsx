@@ -10,8 +10,11 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useSettingsStore } from '@/store/settings';
 import { ACCENTS } from '@/theme/createTheme';
 import { useTheme } from '@/theme/ThemeProvider';
-import { exportData } from '@/utils/export';
+import { exportData, importData } from '@/utils/export';
 import { ensureNotificationSetup } from '@/utils/notifications';
+import { generateDummyData } from '@/utils/dummyData';
+import { checkForUpdates } from '@/utils/updater';
+import { Alert } from 'react-native';
 
 export function SettingsScreen() {
   const theme = useTheme();
@@ -136,6 +139,29 @@ export function SettingsScreen() {
             </Text>
             <Button label="Export JSON" onPress={() => exportData('json')} variant="secondary" />
             <Button label="Export CSV" onPress={() => exportData('csv')} variant="secondary" />
+            <Button label="Restore JSON" onPress={() => importData()} variant="secondary" />
+          </View>
+        </Card>
+
+        <Card style={{ borderRadius: theme.radius.xl }}>
+          <Text style={[styles.cardTitle, { color: theme.colors.textPrimary }]}>Developer Tools</Text>
+          <View style={{ gap: 10, marginTop: 12 }}>
+            <Button label="Generate 90 Days Dummy Data" onPress={async () => {
+              try {
+                await generateDummyData();
+                Alert.alert('Success', '90 Days of dummy data randomly generated.');
+              } catch (e: any) {
+                Alert.alert('Error', e.message);
+              }
+            }} variant="secondary" />
+          </View>
+        </Card>
+
+        <Card style={{ borderRadius: theme.radius.xl }}>
+          <Text style={[styles.cardTitle, { color: theme.colors.textPrimary }]}>About</Text>
+          <View style={{ gap: 10, marginTop: 12 }}>
+            <Text style={{ color: theme.colors.textSecondary, fontWeight: '700' }}>Version 1.0.0</Text>
+            <Button label="Check for Updates" onPress={() => checkForUpdates()} variant="secondary" />
           </View>
         </Card>
 

@@ -2,7 +2,6 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { Alert, AppState, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -109,59 +108,26 @@ export function ActiveSessionScreen() {
   };
 
   return (
-    <Screen scroll={false} contentStyle={{ justifyContent: 'space-between', paddingVertical: 24 }}>
+    <Screen scroll={false} contentStyle={{ justifyContent: 'space-between', paddingVertical: 24, flex: 1 }}>
       <View style={{ gap: 6, alignItems: 'center' }}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Session timer</Text>
         <Text style={{ color: theme.colors.textSecondary, fontWeight: '700' }}>Live tracking</Text>
       </View>
 
-      <Card style={{ padding: 18, borderRadius: theme.radius.xl }}>
-        <View style={{ height: 220, justifyContent: 'center' }}>
-          {/* placeholder “trace” vibe */}
-          <Text style={{ color: theme.colors.textSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: 12 }}>
-            Recording
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Card style={[styles.heroCard, { backgroundColor: theme.colors.surface, shadowColor: theme.colors.textPrimary }]}>
+          <Text style={[styles.heroTimer, { color: theme.colors.textPrimary }]}>
+            {formatMmSs(elapsed)}
           </Text>
-          <Text style={{ marginTop: 16, fontSize: 82, fontWeight: '900', letterSpacing: -2.2, color: theme.colors.textPrimary }}>
-            {elapsed ? Math.round(90 + (elapsed % 15)) : 95}
+          <Text style={{ color: theme.colors.textSecondary, fontWeight: '700', fontSize: 16, marginTop: 8, textTransform: 'uppercase', letterSpacing: 2 }}>
+            Elapsed
           </Text>
-          <Text style={{ marginTop: -6, fontSize: 18, fontWeight: '800', color: theme.colors.textSecondary }}>
-            bpm
-          </Text>
-        </View>
-      </Card>
+        </Card>
+      </View>
 
-      {/* Circular control like the inspiration */}
-      <View style={{ alignItems: 'center', gap: 14 }}>
-        <View style={{ width: 140, height: 140 }}>
-          <Svg width="140" height="140">
-            <Circle cx="70" cy="70" r="58" stroke={theme.colors.border} strokeWidth="10" fill="transparent" />
-            <Circle
-              cx="70"
-              cy="70"
-              r="58"
-              stroke={theme.colors.accent}
-              strokeWidth="10"
-              strokeLinecap="round"
-              strokeDasharray={`${2 * Math.PI * 58}`}
-              strokeDashoffset={`${(2 * Math.PI * 58) * (1 - Math.min(1, elapsed / 90))}`}
-              fill="transparent"
-              rotation={-90}
-              originX="70"
-              originY="70"
-            />
-          </Svg>
-          <View style={styles.circleCenter}>
-            <Text style={{ color: theme.colors.textPrimary, fontWeight: '900', fontSize: 18 }}>
-              {formatMmSs(elapsed)}
-            </Text>
-            <Text style={{ color: theme.colors.textSecondary, fontWeight: '800' }}>Finish</Text>
-          </View>
-        </View>
-
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Button label="Cancel" variant="secondary" onPress={onCancel} style={{ flex: 1 }} />
-          <Button label="Finish" onPress={onFinish} style={{ flex: 1 }} />
-        </View>
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16 }}>
+        <Button label="Cancel" variant="secondary" onPress={onCancel} style={{ flex: 1 }} />
+        <Button label="Finish" onPress={onFinish} style={{ flex: 1 }} />
       </View>
     </Screen>
   );
@@ -169,14 +135,23 @@ export function ActiveSessionScreen() {
 
 const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  circleCenter: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: 140,
-    height: 140,
+  heroCard: {
+    padding: 40,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    width: '100%',
+    minWidth: 280,
+    maxWidth: 340,
+  },
+  heroTimer: {
+    fontSize: 76,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -2,
   },
 });

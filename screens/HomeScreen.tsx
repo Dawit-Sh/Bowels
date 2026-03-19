@@ -11,6 +11,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { GutHero } from '@/components/illustrations/GutHero';
 import { getActiveSession, getDailyAggregates, getDailyHealth, upsertDailyHealth } from '@/db/queries';
 import { useTheme } from '@/theme/ThemeProvider';
+import { fetchDailyTip } from '@/utils/tipsApi';
 import { formatMmSs, toDateKeyLocal, weekRange } from '@/utils/datetime';
 
 const tri = [
@@ -23,6 +24,7 @@ export function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const [scope, setScope] = React.useState<'daily' | 'weekly'>('weekly');
+  const [tip, setTip] = React.useState<string | null>(null);
 
   const todayKey = React.useMemo(() => toDateKeyLocal(new Date()), []);
   const { from, to } = React.useMemo(() => weekRange(new Date()), []);
@@ -67,6 +69,7 @@ export function HomeScreen() {
 
   React.useEffect(() => {
     refresh();
+    fetchDailyTip().then(setTip);
   }, [refresh]);
 
   const updateDaily = async (patch: Partial<typeof daily>) => {
@@ -104,6 +107,13 @@ export function HomeScreen() {
         value={scope}
         onChange={(k) => setScope(k as any)}
       />
+
+      {tip && (
+        <Card style={{ padding: 16, borderRadius: theme.radius.lg, backgroundColor: theme.colors.surface, marginTop: 12 }}>
+          <Text style={{ color: theme.colors.textSecondary, fontWeight: '800', fontSize: 12, textTransform: 'uppercase', marginBottom: 4 }}>Tip of the day</Text>
+          <Text style={{ color: theme.colors.textPrimary, fontWeight: '700', fontSize: 14 }}>{tip}</Text>
+        </Card>
+      )}
 
       <View style={styles.heroCard}>
         <Card style={{ padding: 18, borderRadius: theme.radius.xl }}>
@@ -201,13 +211,14 @@ export function HomeScreen() {
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <Card style={{ flex: 1, borderRadius: theme.radius.xl }}>
           <Text style={{ color: theme.colors.textSecondary, fontWeight: '900', textTransform: 'uppercase' }}>
-            Weekly
-          </Text>
-          <Text style={{ marginTop: 6, color: theme.colors.textPrimary, fontWeight: '900', fontSize: 18 }}>
             Wrapped
           </Text>
-          <View style={{ marginTop: 12 }}>
-            <Button label="Open" onPress={() => router.push('/wrapped')} />
+          <Text style={{ marginTop: 6, color: theme.colors.textPrimary, fontWeight: '900', fontSize: 18 }}>
+            Summaries
+          </Text>
+          <View style={{ marginTop: 12, gap: 8 }}>
+            <Button label="Weekly" onPress={() => router.push('/wrapped')} />
+            <Button label="Yearly" variant="secondary" onPress={() => router.push('/wrapped-yearly')} />
           </View>
         </Card>
         <Card style={{ flex: 1, borderRadius: theme.radius.xl }}>
