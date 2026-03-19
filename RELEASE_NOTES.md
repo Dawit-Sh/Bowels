@@ -1,3 +1,12 @@
+# Bowels Release 1.2.0
+
+## What's New 🚀
+
+### 1. Compact Navigation Dock ⚓
+- **Premium Dock Design:** Completely redesigned the bottom navigation bar into a minimalist, ultra-compact "dock."
+- **Pill-Shaped Layout:** Features a sleek 130px pill with a height of 58px, saving valuable screen real estate.
+- **Improved Alignment:** Home and Menu icons are now perfectly centered as a balanced group, removing all unnecessary white space.
+
 # Bowels Release 1.1.0
 
 We're thrilled to announce a massive v1.1.0 update to Bowels, packed with long-term progression metrics, new insights, intelligent forecasting, and structural refinements!

@@ -7,6 +7,7 @@ type PersistedSettings = {
   mode: ColorMode;
   accent: AccentColor;
   hasOnboarded: boolean;
+  hasRealData: boolean;
   notificationsEnabled: boolean;
   dailyReminderTime: string; // "HH:MM"
   weeklyReportEnabled: boolean;
@@ -16,6 +17,7 @@ const DEFAULTS: PersistedSettings = {
   mode: 'light',
   accent: 'orange',
   hasOnboarded: false,
+  hasRealData: false,
   notificationsEnabled: true,
   dailyReminderTime: '20:00',
   weeklyReportEnabled: true,
@@ -27,6 +29,7 @@ type SettingsState = PersistedSettings & {
   setMode: (mode: ColorMode) => Promise<void>;
   setAccent: (accent: AccentColor) => Promise<void>;
   setHasOnboarded: (hasOnboarded: boolean) => Promise<void>;
+  setHasRealData: (hasRealData: boolean) => Promise<void>;
   setNotificationsEnabled: (enabled: boolean) => Promise<void>;
   setDailyReminderTime: (hhmm: string) => Promise<void>;
   setWeeklyReportEnabled: (enabled: boolean) => Promise<void>;
@@ -53,6 +56,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ hasOnboarded });
     await settingsSet(SETTINGS_KEY, { ...getPersisted(get()), hasOnboarded });
   },
+  setHasRealData: async (hasRealData) => {
+    set({ hasRealData });
+    await settingsSet(SETTINGS_KEY, { ...getPersisted(get()), hasRealData });
+  },
   setNotificationsEnabled: async (notificationsEnabled) => {
     set({ notificationsEnabled });
     await settingsSet(SETTINGS_KEY, { ...getPersisted(get()), notificationsEnabled });
@@ -72,6 +79,7 @@ function getPersisted(state: SettingsState): PersistedSettings {
     mode: state.mode,
     accent: state.accent,
     hasOnboarded: state.hasOnboarded,
+    hasRealData: state.hasRealData,
     notificationsEnabled: state.notificationsEnabled,
     dailyReminderTime: state.dailyReminderTime,
     weeklyReportEnabled: state.weeklyReportEnabled,

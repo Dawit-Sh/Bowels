@@ -23,7 +23,8 @@ export type IconSymbolName =
   | 'drop.fill'
   | 'brain.head.profile'
   | 'scale.3d'
-  | 'flame.fill';
+  | 'flame.fill'
+  | 'line.3.horizontal';
 
 type IconMapping = Record<IconSymbolName, ComponentProps<typeof MaterialIcons>['name']>;
 
@@ -53,6 +54,7 @@ const MAPPING = {
   'brain.head.profile': 'psychology',
   'scale.3d': 'balance',
   'flame.fill': 'local-fire-department',
+  'line.3.horizontal': 'menu',
 } as IconMapping;
 
 /**

@@ -62,6 +62,7 @@ export function OnboardingScreen() {
           )}
           <Button
             label={isLast ? 'Get started' : 'Next'}
+            iconRight="chevron.right"
             onPress={async () => {
               if (!isLast) {
                 setI((v) => Math.min(SLIDES.length - 1, v + 1));
@@ -70,7 +71,7 @@ export function OnboardingScreen() {
               await setHasOnboarded(true);
               router.replace('/(tabs)');
             }}
-            style={{ flex: 1, height: 50 }}
+            style={{ flex: 1, width: '100%' }}
           />
         </View>
         <Text style={{ color: theme.colors.textSecondary, fontWeight: '700', textAlign: 'center', fontSize: 12 }}>

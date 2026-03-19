@@ -8,8 +8,12 @@ import { IconButton } from '@/components/ui/IconButton';
 import { MetricTile } from '@/components/ui/MetricTile';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { SwipeSlider } from '@/components/ui/SwipeSlider';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GutHero } from '@/components/illustrations/GutHero';
 import { getActiveSession, getDailyAggregates, getDailyHealth, upsertDailyHealth } from '@/db/queries';
+import { getDb } from '@/db/client';
+import { useSettingsStore } from '@/store/settings';
 import { useTheme } from '@/theme/ThemeProvider';
 import { fetchDailyTip } from '@/utils/tipsApi';
 import { formatMmSs, toDateKeyLocal, weekRange } from '@/utils/datetime';
@@ -87,16 +91,11 @@ export function HomeScreen() {
   };
 
   return (
-    <Screen>
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.hi, { color: theme.colors.textSecondary }]}>Hello</Text>
-          <Text style={[styles.headline, { color: theme.colors.textPrimary }]}>Bowels</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <IconButton icon="person.circle" onPress={() => router.push('/(tabs)/settings')} />
-          <IconButton icon="bell" onPress={() => router.push('/(tabs)/insights')} />
-        </View>
+    <Screen contentStyle={{ paddingBottom: 120 }}>
+      <View style={[styles.headerRow, { justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8 }]}>
+        <IconButton icon="bell" onPress={() => router.push('/insights')} />
+        <Text style={[styles.headline, { color: theme.colors.textPrimary, textAlign: 'center' }]}>Bowels</Text>
+        <IconButton icon="person.circle" onPress={() => router.push('/settings')} />
       </View>
 
       <SegmentedControl
@@ -116,54 +115,58 @@ export function HomeScreen() {
       )}
 
       <View style={styles.heroCard}>
-        <Card style={{ padding: 18, borderRadius: theme.radius.xl }}>
-          <View style={{ minHeight: 240 }}>
-            <GutHero style={styles.gut} />
-
-            <View style={{ gap: 10 }}>
-              <Text style={[styles.kicker, { color: theme.colors.textSecondary }]}>
-                {scope === 'weekly' ? 'Statistics' : 'Today'}
+        <Card style={{ padding: 24, borderRadius: 32, backgroundColor: '#4C7CFF', overflow: 'hidden' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Quick Access
               </Text>
-              <Text style={[styles.sub, { color: theme.colors.textSecondary }]}>
-                {scope === 'weekly' ? 'Weekly overview' : 'Your day so far'}
+              <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 4, letterSpacing: -0.5 }}>
+                {activeSessionId ? 'Resume Tracking' : 'Start Session'}
               </Text>
+              
+              <View style={{ flexDirection: 'row', marginTop: 16, gap: 16 }}>
+                 <View>
+                   <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700' }}>Today</Text>
+                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>{todayVisits} logs</Text>
+                 </View>
+                 <View>
+                   <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700' }}>Week Avg</Text>
+                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>{formatMmSs(weekAvg)}</Text>
+                 </View>
+              </View>
             </View>
-
-            <View style={{ marginTop: 14, flexDirection: 'row', gap: 12 }}>
-              <MetricTile
-                label={scope === 'weekly' ? 'Today visits' : 'Visits'}
-                value={`${todayVisits}`}
-                unit=""
-                style={{ flex: 1 }}
-              />
-              <MetricTile
-                label={scope === 'weekly' ? 'Total time' : 'Week total'}
-                value={scope === 'weekly' ? formatMmSs(weekTotal) : formatMmSs(weekTotal)}
-                hint={scope === 'weekly' ? `Avg ${formatMmSs(weekAvg)}` : `Avg ${formatMmSs(weekAvg)}`}
-                style={{ flex: 1 }}
-              />
-            </View>
-
-            <View style={{ marginTop: 14 }}>
-              {activeSessionId ? (
-                <View style={{ gap: 10 }}>
-                  <Button
-                    label="Resume Session"
-                    onPress={() =>
-                      router.push({ pathname: '/session/active', params: { sessionId: String(activeSessionId) } })
-                    }
-                  />
-                  <Button label="Start New Session" variant="secondary" onPress={() => router.push('/session/active')} />
-                </View>
-              ) : (
-                <Button label="Start Session" onPress={() => router.push('/session/active')} />
-              )}
+            
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
+              <IconSymbol name="bolt.fill" size={24} color="#fff" />
             </View>
           </View>
+
+          <View style={{ marginTop: 24, zIndex: 10 }}>
+            <SwipeSlider
+              isActive={!!activeSessionId}
+              onSwipeSuccess={async () => {
+                if (activeSessionId) {
+                  router.push({ pathname: '/session/active', params: { sessionId: String(activeSessionId) } });
+                } else {
+                  const settings = useSettingsStore.getState();
+                  if (!settings.hasRealData) {
+                    const db = await getDb();
+                    await db.runAsync('DELETE FROM sessions;');
+                    await db.runAsync('DELETE FROM daily_health;');
+                    await settings.setHasRealData(true);
+                  }
+                  router.push('/session/active');
+                }
+              }}
+            />
+          </View>
+          
+          <GutHero style={{ position: 'absolute', opacity: 0.15, right: -50, top: -20, width: 250, height: 250 }} />
         </Card>
       </View>
 
-      <Card style={{ borderRadius: theme.radius.xl }}>
+      <Card style={{ borderRadius: 32 }}>
         <View style={{ gap: 12 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={[styles.cardTitle, { color: theme.colors.textPrimary }]}>Daily check-in</Text>
@@ -208,8 +211,8 @@ export function HomeScreen() {
         </View>
       </Card>
 
-      <View style={{ flexDirection: 'row', gap: 12 }}>
-        <Card style={{ flex: 1, borderRadius: theme.radius.xl }}>
+      <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 100 }}>
+        <Card style={{ flex: 1, borderRadius: 32 }}>
           <Text style={{ color: theme.colors.textSecondary, fontWeight: '900', textTransform: 'uppercase' }}>
             Wrapped
           </Text>
@@ -221,13 +224,15 @@ export function HomeScreen() {
             <Button label="Yearly" variant="secondary" onPress={() => router.push('/wrapped-yearly')} />
           </View>
         </Card>
-        <Card style={{ flex: 1, borderRadius: theme.radius.xl }}>
-          <Text style={{ color: theme.colors.textSecondary, fontWeight: '900', textTransform: 'uppercase' }}>
-            Trends
-          </Text>
-          <Text style={{ marginTop: 6, color: theme.colors.textPrimary, fontWeight: '900', fontSize: 18 }}>
-            Analytics
-          </Text>
+        <Card style={{ flex: 1, borderRadius: 32, justifyContent: 'space-between' }}>
+          <View>
+            <Text style={{ color: theme.colors.textSecondary, fontWeight: '900', textTransform: 'uppercase' }}>
+              Trends
+            </Text>
+            <Text style={{ marginTop: 6, color: theme.colors.textPrimary, fontWeight: '900', fontSize: 18 }}>
+              Analytics
+            </Text>
+          </View>
           <View style={{ marginTop: 12 }}>
             <Button label="Open" variant="secondary" onPress={() => router.push('/(tabs)/analytics')} />
           </View>

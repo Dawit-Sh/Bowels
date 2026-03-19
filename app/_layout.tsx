@@ -5,6 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { View } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { AppBootstrap } from '@/screens/AppBootstrap';
@@ -52,12 +54,20 @@ function NavigationThemeBridge({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <NavigationThemeBridge>
-        <AppBootstrap>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="onboarding" options={{ presentation: 'fullScreenModal' }} />
-            <Stack.Screen name="(tabs)" />
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider>
+        <NavigationThemeBridge>
+          <AppBootstrap>
+            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 250 }}>
+              <Stack.Screen name="onboarding/index" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="settings" />
+              <Stack.Screen name="badges" />
+              <Stack.Screen name="insights" />
+              <Stack.Screen name="predictions" />
+              <Stack.Screen name="history" />
+              <Stack.Screen name="analytics" />
             <Stack.Screen name="session/active" options={{ presentation: 'modal' }} />
             <Stack.Screen name="session/questions" options={{ presentation: 'modal' }} />
             <Stack.Screen name="session/summary" options={{ presentation: 'modal' }} />
@@ -69,5 +79,7 @@ export default function RootLayout() {
         <StatusBar style="auto" />
       </NavigationThemeBridge>
     </ThemeProvider>
+    </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

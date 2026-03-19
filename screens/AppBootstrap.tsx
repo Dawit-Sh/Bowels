@@ -34,6 +34,16 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
         // Keep boot fast: only the essentials should block the first render.
         await withTimeout(initDb(), 8000);
         await withTimeout(hydrate(), 8000);
+
+        const { hasRealData } = useSettingsStore.getState();
+        if (!hasRealData) {
+          const { listSessions } = await import('@/db/queries');
+          const sessions = await listSessions(1, 0);
+          if (sessions.length === 0) {
+            const { generateDummyData } = await import('@/utils/dummyData');
+            await generateDummyData();
+          }
+        }
       } catch (e) {
         setBootError(e instanceof Error ? e.message : 'Boot failed');
       } finally {
