@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Bowels",
+    "slug": "bowels",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fbfbe2"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#fbfbe2"
+      }
+    },
+    "plugins": [
+      "expo-document-picker",
+      "expo-notifications"
+    ]
+  }
+}

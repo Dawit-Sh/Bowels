@@ -1,0 +1,48 @@
+{
+  "name": "bowels-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "eslint . --ext .ts,.tsx,.js --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "doctor": "expo-doctor",
+    "verify": "npm run typecheck && npm run doctor"
+  },
+  "dependencies": {
+    "@expo-google-fonts/manrope": "^0.4.1",
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "^55.0.0",
+    "expo-blur": "~55.0.10",
+    "expo-constants": "~55.0.9",
+    "expo-document-picker": "~55.0.9",
+    "expo-file-system": "~55.0.11",
+    "expo-font": "~55.0.4",
+    "expo-linear-gradient": "~55.0.9",
+    "expo-notifications": "~55.0.13",
+    "expo-sharing": "~55.0.14",
+    "expo-sqlite": "~55.0.11",
+    "expo-status-bar": "~55.0.4",
+    "expo-system-ui": "~55.0.10",
+    "react": "19.2.0",
+    "react-native": "0.83.2",
+    "react-native-safe-area-context": "~5.6.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@eslint/js": "^9.24.0",
+    "@types/react": "~19.2.14",
+    "@typescript-eslint/eslint-plugin": "^8.29.0",
+    "@typescript-eslint/parser": "^8.29.0",
+    "babel-preset-expo": "~55.0.0",
+    "eslint": "^9.24.0",
+    "globals": "^16.0.0",
+    "expo-doctor": "^1.18.1",
+    "typescript": "~5.9.2"
+  }
+}
