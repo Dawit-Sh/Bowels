@@ -8,6 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build:apk": "eas build --platform android --profile preview",
+    "build:apk:local": "eas build --platform android --profile preview --local",
     "lint": "eslint . --ext .ts,.tsx,.js --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "doctor": "expo-doctor",

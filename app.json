@@ -21,11 +21,17 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#fbfbe2"
-      }
+      },
+      "package": "com.d_ave.bowels"
     },
     "plugins": [
       "expo-document-picker",
       "expo-notifications"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4748c888-d2f8-43e5-a524-ff9e359cfeee"
+      }
+    }
   }
 }
