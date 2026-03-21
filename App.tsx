@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Alert, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, AppState, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -20,10 +20,21 @@ import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { WeeklyWrappedScreen } from "./screens/WeeklyWrappedScreen";
 import { HealthInfoScreen } from "./screens/HealthInfoScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { OnboardingScreen } from "./screens/OnboardingScreen";
+import { BadgesScreen } from "./screens/BadgesScreen";
 import { exportArchiveData, importArchiveData } from "./db/repository";
+import {
+  addSessionResponseListener,
+  configureNotifications,
+  dismissSessionNotification,
+  getInitialSessionResponse,
+  isFinishSessionAction,
+  showSessionNotification,
+} from "./src/notifications";
 
 function AppShell() {
   const app = useApp();
+  const appRef = useRef(app);
   const themeMode = useResolvedThemeMode(app.settings.themeMode);
   const palette = buildPalette(themeMode, app.settings.accent);
   const [liveSeconds, setLiveSeconds] = useState(0);
@@ -44,6 +55,11 @@ function AppShell() {
         sleep: "Fair",
         exercise: "Light",
       };
+  const sessionRunning = Boolean(app.activeDraft.startTime && !app.activeDraft.endTime && app.screen === "active");
+
+  useEffect(() => {
+    appRef.current = app;
+  }, [app]);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(palette.background).catch(() => undefined);
@@ -62,6 +78,70 @@ function AppShell() {
     const intervalId = setInterval(sync, 1000);
     return () => clearInterval(intervalId);
   }, [app.activeDraft.durationSeconds, app.activeDraft.startTime, app.screen]);
+
+  useEffect(() => {
+    let mounted = true;
+    let subscription: { remove: () => void } | null = null;
+
+    const handleResponse = async (actionId: string) => {
+      if (!mounted || !appRef.current.activeDraft.startTime) {
+        return;
+      }
+      await dismissSessionNotification();
+      if (isFinishSessionAction(actionId)) {
+        appRef.current.finishSession();
+      } else {
+        appRef.current.setScreen("active");
+      }
+    };
+
+    const setupNotifications = async () => {
+      await configureNotifications();
+      const initialResponse = await getInitialSessionResponse();
+      if (initialResponse) {
+        await handleResponse(initialResponse.actionId);
+      }
+      subscription = await addSessionResponseListener((actionId) => {
+        void handleResponse(actionId);
+      });
+    };
+
+    void setupNotifications();
+
+    return () => {
+      mounted = false;
+      subscription?.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const running = Boolean(appRef.current.activeDraft.startTime && !appRef.current.activeDraft.endTime && appRef.current.screen === "active");
+      if (!running) {
+        void dismissSessionNotification();
+        return;
+      }
+
+      if (nextState === "background" || nextState === "inactive") {
+        void showSessionNotification(appRef.current.activeDraft.startTime as string);
+        return;
+      }
+
+      if (nextState === "active") {
+        void dismissSessionNotification();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sessionRunning) {
+      void dismissSessionNotification();
+    }
+  }, [sessionRunning]);
 
   const timerLabel = `${String(Math.floor(liveSeconds / 60)).padStart(2, "0")}:${String(liveSeconds % 60).padStart(2, "0")}`;
 
@@ -96,7 +176,8 @@ function AppShell() {
     }
   };
 
-  const offTab = app.screen === "weekly" || app.screen === "health" || app.screen === "settings" || app.screen === "questions";
+  const showChrome = app.screen !== "onboarding";
+  const offTab = app.screen === "weekly" || app.screen === "health" || app.screen === "settings" || app.screen === "questions" || app.screen === "badges";
 
   if (app.loading) {
     return <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }} edges={["top", "left", "right"]} />;
@@ -105,23 +186,35 @@ function AppShell() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }} edges={["top", "left", "right"]}>
       <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
-      <ScreenHeader
-        palette={palette}
-        title={app.screen === "history" ? "Data & Privacy" : app.screen === "analytics" ? "Insights" : "Bowels"}
-        leftIcon={offTab ? "arrow-back" : "settings"}
-        onLeftPress={() => app.setScreen(offTab ? "home" : "settings")}
-      />
+      {showChrome ? (
+        <ScreenHeader
+          palette={palette}
+          title={
+            app.screen === "history"
+              ? "Data & Privacy"
+              : app.screen === "analytics"
+                ? "Insights"
+                : app.screen === "badges"
+                  ? "Milestones"
+                  : "Bowels"
+          }
+          leftIcon={offTab ? "arrow-back" : "settings"}
+          onLeftPress={() => app.setScreen(offTab ? "home" : "settings")}
+        />
+      ) : null}
       <View style={{ flex: 1 }}>
+        {app.screen === "onboarding" ? <OnboardingScreen palette={palette} completeOnboarding={app.completeOnboarding} /> : null}
         {app.screen === "home" ? <HomeScreen palette={palette} sessions={app.sessions} insights={app.insights} analytics={app.analytics} dailyHealth={latestHealth} setScreen={app.setScreen} startSession={app.startSession} saveDailyHealth={app.saveDailyHealth} quickLogBowel={app.quickLogBowel} /> : null}
         {app.screen === "active" ? <ActiveSessionScreen palette={palette} timerLabel={timerLabel} draft={app.activeDraft} updateDraft={app.updateDraft} startSession={app.startSession} finishSession={app.finishSession} cancelSession={app.cancelSession} /> : null}
         {app.screen === "questions" ? <QuestionsScreen palette={palette} draft={app.activeDraft} updateDraft={app.updateDraft} saveQuestions={app.saveQuestions} /> : null}
         {app.screen === "history" ? <HistoryScreen palette={palette} sessions={app.sessions} onExport={() => void exportData()} onImport={() => void importData()} /> : null}
         {app.screen === "analytics" ? <AnalyticsScreen palette={palette} analytics={app.analytics} insights={app.insights} /> : null}
         {app.screen === "weekly" ? <WeeklyWrappedScreen palette={palette} analytics={app.analytics} /> : null}
+        {app.screen === "badges" ? <BadgesScreen palette={palette} progressDays={app.analytics.milestoneProgressDays} /> : null}
         {app.screen === "health" ? <HealthInfoScreen palette={palette} /> : null}
         {app.screen === "settings" ? <SettingsScreen palette={palette} settings={app.settings} setThemeMode={app.setThemeMode} setAccent={app.setAccent} setReminderHour={app.setReminderHour} /> : null}
       </View>
-      <BottomNav palette={palette} screen={app.screen === "questions" ? "active" : app.screen} setScreen={app.setScreen} />
+      {showChrome ? <BottomNav palette={palette} screen={app.screen === "questions" ? "active" : app.screen} setScreen={app.setScreen} /> : null}
     </SafeAreaView>
   );
 }

@@ -122,6 +122,7 @@ export function HomeScreen({
 
       <View style={styles.quickLinks}>
         <QuickLink palette={palette} label="Weekly Wrapped" icon="auto-awesome" onPress={() => setScreen("weekly")} />
+        <QuickLink palette={palette} label="Milestones" icon="emoji-events" onPress={() => setScreen("badges")} />
         <QuickLink palette={palette} label="Health Info" icon="health-and-safety" onPress={() => setScreen("health")} />
       </View>
 
@@ -174,8 +175,8 @@ const styles = StyleSheet.create({
   fieldBlock: { gap: 10 },
   fieldLabel: { fontFamily: "Manrope_700Bold", fontSize: 14, textTransform: "capitalize" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  quickLinks: { flexDirection: "row", gap: 12 },
-  quickCard: { flex: 1, borderRadius: 28, padding: 20, gap: 12 },
+  quickLinks: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  quickCard: { width: "30.5%", minWidth: 96, borderRadius: 28, padding: 20, gap: 12 },
   quickLabel: { fontFamily: "Manrope_700Bold", fontSize: 16 },
   body: { fontFamily: "Manrope_400Regular", fontSize: 14, lineHeight: 20 },
 });

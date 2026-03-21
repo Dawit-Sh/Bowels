@@ -69,6 +69,7 @@ export function buildAnalytics(sessions: SessionRecord[], answers: AnswerMap, da
     totalVisits,
     totalDurationSeconds,
     predictedNextTimeLabel,
+    milestoneProgressDays: days.filter((day) => sessions.some((session) => session.startTime.slice(0, 10) === day)).length,
   };
 }
 

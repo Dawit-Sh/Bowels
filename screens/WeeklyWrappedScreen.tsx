@@ -20,7 +20,7 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
       <View style={styles.grid}>
         <Card palette={palette} style={styles.square}><Text style={[styles.cardTitle, { color: palette.onSurface }]}>Avg Duration</Text><Text style={[styles.big, { color: palette.primary }]}>{Math.round(analytics.averageDurationSeconds / 60)}m</Text></Card>
         <Card palette={palette} style={styles.square}>
-          <Text style={[styles.cardTitle, { color: palette.onSurface }]}>Most Common Type</Text>
+          <Text style={[styles.cardTitle, { color: palette.onSurface }]}>Common</Text>
           <View style={styles.commonWrap}>
             <Text style={[styles.commonLabel, { color: palette.secondary }]}>{commonMeta.short}</Text>
           </View>

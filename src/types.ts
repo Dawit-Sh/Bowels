@@ -9,7 +9,7 @@ export type AdaptiveTag = "bloating" | "straining" | "gas";
 export type StoolType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type ThemeMode = "light" | "dark" | "system";
 export type AccentKey = "olive" | "coral" | "rose" | "slate";
-export type AppScreen = "home" | "active" | "questions" | "history" | "analytics" | "weekly" | "health" | "settings";
+export type AppScreen = "onboarding" | "home" | "active" | "questions" | "history" | "analytics" | "weekly" | "health" | "settings" | "badges";
 
 export type SessionRecord = {
   id: number;
@@ -69,6 +69,8 @@ export type AppSettings = {
   accent: AccentKey;
   reminderHour: number;
   notificationsEnabled: boolean;
+  hasOnboarded: boolean;
+  hasRealData: boolean;
 };
 
 export type AnalyticsSummary = {
@@ -80,6 +82,7 @@ export type AnalyticsSummary = {
   totalVisits: number;
   totalDurationSeconds: number;
   predictedNextTimeLabel: string;
+  milestoneProgressDays: number;
 };
 
 export type InsightItem = {

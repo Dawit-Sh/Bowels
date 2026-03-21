@@ -6,7 +6,7 @@ import { healthInfo } from "../src/healthInfo";
 export function HealthInfoScreen({ palette }: { palette: any }) {
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SectionTitle palette={palette} title="Gut Health Best Practices" subtitle="Static, lightweight guidance stored locally for fast access." />
+      <SectionTitle palette={palette} title="Gut Health Best Practices" subtitle="Private, lightweight guidance stored locally for fast access." />
       {healthInfo.map((item) => (
         <Card key={item.id} palette={palette}>
           <Text style={[styles.title, { color: palette.onSurface }]}>{item.title}</Text>

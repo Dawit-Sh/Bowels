@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Appearance } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { buildAnalytics, buildInsights } from "../src/analytics";
+import { demoDailyHealth, demoSessionAnswers, demoSessions } from "../src/demoData";
 import { scheduleDailyReminder } from "../src/notifications";
 import type {
   AccentKey,
@@ -12,6 +14,7 @@ import type {
   DailyHealthInput,
   DailyHealthRecord,
   InsightItem,
+  SessionAnswerRecord,
   SessionDraft,
   SessionRecord,
   ThemeMode,
@@ -47,6 +50,8 @@ type AppContextValue = {
   setThemeMode: (themeMode: ThemeMode) => Promise<void>;
   setAccent: (accent: AccentKey) => Promise<void>;
   setReminderHour: (hour: number) => Promise<void>;
+  completeOnboarding: () => Promise<void>;
+  markHasRealData: () => Promise<void>;
 };
 
 const defaultSettings: AppSettings = {
@@ -54,6 +59,8 @@ const defaultSettings: AppSettings = {
   accent: "olive",
   reminderHour: 20,
   notificationsEnabled: true,
+  hasOnboarded: false,
+  hasRealData: false,
 };
 
 const emptyDraft: SessionDraft = {
@@ -72,37 +79,14 @@ const emptyDraft: SessionDraft = {
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
+const ACTIVE_DRAFT_KEY = "bowels-active-draft";
 
-async function seedIfEmpty() {
-  const existing = await readSessions();
-  if (existing.length) {
-    return;
-  }
-
-  const now = new Date();
-  for (let index = 0; index < 4; index += 1) {
-    const start = new Date(now);
-    start.setDate(now.getDate() - index);
-    start.setHours(8, 10 + index * 4, 0, 0);
-    const end = new Date(start.getTime() + (4 + index) * 60 * 1000);
-    await saveSession({
-      ...emptyDraft,
-      kind: "bowel",
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
-      durationSeconds: Math.floor((end.getTime() - start.getTime()) / 1000),
-      stoolType: (index % 2 === 0 ? 4 : 3) as 3 | 4,
-    });
-  }
-
-  await upsertDailyHealth(new Date().toISOString().slice(0, 10), {
-    water: "Great",
-    fiber: "High",
-    meals: "Balanced",
-    stress: "Low",
-    sleep: "Great",
-    exercise: "Light",
-  });
+function buildAnswerMap(answerRows: Array<{ sessionId: number; key: string; value: string }>) {
+  return answerRows.reduce<Record<number, Record<string, string>>>((acc, item) => {
+    acc[item.sessionId] = acc[item.sessionId] ?? {};
+    acc[item.sessionId][item.key] = item.value;
+    return acc;
+  }, {});
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -114,6 +98,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [activeDraft, setActiveDraft] = useState<SessionDraft>(emptyDraft);
 
+  const demoAnswerMap = useMemo(
+    () =>
+      buildAnswerMap(
+        demoSessionAnswers.map((item: SessionAnswerRecord) => ({
+          sessionId: item.sessionId,
+          key: item.key,
+          value: item.value,
+        }))
+      ),
+    []
+  );
+
+  const persistSettings = async (next: AppSettings) => {
+    setSettings(next);
+    await saveSettings(next);
+    if (next.notificationsEnabled) {
+      await scheduleDailyReminder(next.reminderHour);
+    }
+  };
+
+  const markHasRealData = async () => {
+    if (settings.hasRealData) {
+      return;
+    }
+    await persistSettings({ ...settings, hasRealData: true });
+  };
+
   const reload = async () => {
     const [sessionRows, answerRows, healthRows, settingRows] = await Promise.all([
       readSessions(),
@@ -124,12 +135,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setSessions(sessionRows);
     setDailyHealth(healthRows);
-    const answerMap = answerRows.reduce<Record<number, Record<string, string>>>((acc, item) => {
-      acc[item.sessionId] = acc[item.sessionId] ?? {};
-      acc[item.sessionId][item.key] = item.value;
-      return acc;
-    }, {});
-    setAnswers(answerMap);
+    setAnswers(buildAnswerMap(answerRows));
 
     if (settingRows.length) {
       const nextSettings = { ...defaultSettings };
@@ -138,42 +144,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (row.key === "accent") nextSettings.accent = row.value as AccentKey;
         if (row.key === "reminderHour") nextSettings.reminderHour = Number(row.value);
         if (row.key === "notificationsEnabled") nextSettings.notificationsEnabled = row.value === "true";
+        if (row.key === "hasOnboarded") nextSettings.hasOnboarded = row.value === "true";
+        if (row.key === "hasRealData") nextSettings.hasRealData = row.value === "true";
       });
       setSettings(nextSettings);
+      if (!nextSettings.hasOnboarded) {
+        setScreen("onboarding");
+      }
     } else {
       await saveSettings(defaultSettings);
+      setSettings(defaultSettings);
+      setScreen("onboarding");
     }
   };
 
   useEffect(() => {
-    seedIfEmpty()
-      .then(reload)
-      .finally(() => setLoading(false));
+    reload().finally(() => setLoading(false));
   }, []);
 
-  const persistSettings = async (next: AppSettings) => {
-    setSettings(next);
-    await saveSettings(next);
-    if (next.notificationsEnabled) {
-      await scheduleDailyReminder(next.reminderHour);
-    }
-  };
+  useEffect(() => {
+    const persistDraft = async () => {
+      if (activeDraft.startTime) {
+        await AsyncStorage.setItem(ACTIVE_DRAFT_KEY, JSON.stringify(activeDraft));
+        return;
+      }
+      await AsyncStorage.removeItem(ACTIVE_DRAFT_KEY);
+    };
 
-  const analytics = useMemo(() => buildAnalytics(sessions, answers, dailyHealth), [sessions, answers, dailyHealth]);
-  const insights = useMemo(() => buildInsights(sessions, answers), [sessions, answers]);
+    void persistDraft();
+  }, [activeDraft]);
+
+  useEffect(() => {
+    const restoreDraft = async () => {
+      const raw = await AsyncStorage.getItem(ACTIVE_DRAFT_KEY);
+      if (!raw) {
+        return;
+      }
+      try {
+        const restored = JSON.parse(raw) as SessionDraft;
+        if (restored?.startTime) {
+          setActiveDraft(restored);
+        }
+      } catch {
+        await AsyncStorage.removeItem(ACTIVE_DRAFT_KEY);
+      }
+    };
+
+    void restoreDraft();
+  }, []);
+
+  const usingDemo = !settings.hasRealData;
+  const visibleSessions = usingDemo ? demoSessions : sessions;
+  const visibleAnswers = usingDemo ? demoAnswerMap : answers;
+  const visibleDailyHealth = usingDemo ? demoDailyHealth : dailyHealth;
+
+  const analytics = useMemo(() => buildAnalytics(visibleSessions, visibleAnswers, visibleDailyHealth), [visibleAnswers, visibleDailyHealth, visibleSessions]);
+  const insights = useMemo(() => buildInsights(visibleSessions, visibleAnswers), [visibleAnswers, visibleSessions]);
 
   const value: AppContextValue = {
     loading,
     screen,
     setScreen,
-    sessions,
-    dailyHealth,
+    sessions: visibleSessions,
+    dailyHealth: visibleDailyHealth,
     settings,
     analytics,
     insights,
     refresh: reload,
     activeDraft,
     quickLogBowel: async (stoolType) => {
+      await markHasRealData();
       const started = new Date();
       const ended = new Date(started.getTime() + 60 * 1000);
       await saveSession({
@@ -212,12 +252,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     },
     saveQuestions: async () => {
+      await markHasRealData();
       await saveSession(activeDraft);
+      await AsyncStorage.removeItem(ACTIVE_DRAFT_KEY);
       await reload();
       setActiveDraft(emptyDraft);
       setScreen("history");
     },
     saveDailyHealth: async (input) => {
+      await markHasRealData();
       await upsertDailyHealth(new Date().toISOString().slice(0, 10), input);
       await reload();
     },
@@ -230,6 +273,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setReminderHour: async (reminderHour) => {
       await persistSettings({ ...settings, reminderHour });
     },
+    completeOnboarding: async () => {
+      await persistSettings({ ...settings, hasOnboarded: true });
+      setScreen("home");
+    },
+    markHasRealData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
