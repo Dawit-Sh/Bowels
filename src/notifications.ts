@@ -142,6 +142,37 @@ export async function showSessionNotification(startTime: string) {
   return true;
 }
 
+let updateIntervalId: ReturnType<typeof setInterval> | null = null;
+
+export async function startSessionNotificationUpdates(startTime: string) {
+  await showSessionNotification(startTime);
+  
+  // Update notification every 10 seconds to keep timer in sync
+  if (updateIntervalId) {
+    clearInterval(updateIntervalId);
+  }
+  
+  updateIntervalId = setInterval(async () => {
+    const Notifications = await loadNotifications();
+    if (!Notifications) {
+      return;
+    }
+    
+    const id = await AsyncStorage.getItem(SESSION_NOTIFICATION_KEY);
+    if (!id) {
+      if (updateIntervalId) {
+        clearInterval(updateIntervalId);
+        updateIntervalId = null;
+      }
+      return;
+    }
+    
+    // Update the notification with current elapsed time
+    await Notifications.dismissNotificationAsync(id).catch(() => undefined);
+    await showSessionNotification(startTime);
+  }, 10000); // Update every 10 seconds
+}
+
 export async function dismissSessionNotification() {
   const Notifications = await loadNotifications();
   if (!Notifications) {
@@ -153,6 +184,17 @@ export async function dismissSessionNotification() {
     await Notifications.cancelScheduledNotificationAsync(id).catch(() => undefined);
   }
   await AsyncStorage.removeItem(SESSION_NOTIFICATION_KEY);
+  
+  // Clear update interval if exists
+  const { stopSessionNotificationUpdates } = await import("./notifications");
+  stopSessionNotificationUpdates();
+}
+
+export function stopSessionNotificationUpdates() {
+  if (updateIntervalId) {
+    clearInterval(updateIntervalId);
+    updateIntervalId = null;
+  }
 }
 
 export async function addSessionResponseListener(listener: (actionId: string, data: Record<string, unknown>) => void) {
@@ -193,4 +235,26 @@ export async function getInitialSessionResponse() {
 
 export function isFinishSessionAction(actionId: string) {
   return actionId === FINISH_ACTION_ID;
+}
+
+export async function showMilestoneNotification(milestone: { title: string; body: string; days: number }) {
+  const Notifications = await loadNotifications();
+  if (!Notifications || typeof Notifications.scheduleNotificationAsync !== "function") {
+    return false;
+  }
+  const granted = await ensureNotificationPermission();
+  if (!granted) {
+    return false;
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `🎉 Milestone Unlocked: ${milestone.title}`,
+      body: `${milestone.days} day${milestone.days === 1 ? "" : "s"} achieved! ${milestone.body}`,
+      data: { type: "milestone", days: milestone.days },
+    },
+    trigger: null,
+  });
+
+  return true;
 }

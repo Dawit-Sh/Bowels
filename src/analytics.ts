@@ -44,21 +44,42 @@ export function buildAnalytics(sessions: SessionRecord[], answers: AnswerMap, da
     .filter((session) => session.kind === "bowel")
     .map((session) => new Date(session.startTime))
     .sort((a, b) => b.getTime() - a.getTime());
-  const predictedNextTimeLabel = bowelTimes.length >= 2
+  
+  const predictedNextTimeLabel = bowelTimes.length >= 3
     ? (() => {
-        const averageMinutes = Math.round(
-          bowelTimes
-            .slice(0, 5)
-            .reduce((sum, date) => sum + date.getHours() * 60 + date.getMinutes(), 0) / Math.min(5, bowelTimes.length)
-        );
-        const hours = Math.floor(averageMinutes / 60);
-        const minutes = averageMinutes % 60;
-        const next = new Date();
-        next.setDate(next.getDate() + 1);
+        // Use weighted average: recent sessions have more weight
+        const recentSessions = bowelTimes.slice(0, Math.min(10, bowelTimes.length));
+        const weights = recentSessions.map((_, idx) => Math.pow(0.85, idx)); // Exponential decay
+        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+        
+        const weightedMinutes = recentSessions.reduce((sum, date, idx) => {
+          const minutes = date.getHours() * 60 + date.getMinutes();
+          return sum + minutes * weights[idx];
+        }, 0) / totalWeight;
+        
+        // Calculate time intervals between sessions to estimate next occurrence
+        const intervals: number[] = [];
+        for (let i = 0; i < recentSessions.length - 1; i++) {
+          intervals.push((recentSessions[i].getTime() - recentSessions[i + 1].getTime()) / (1000 * 60 * 60));
+        }
+        const avgInterval = intervals.length > 0 ? intervals.reduce((sum, val) => sum + val, 0) / intervals.length : 24;
+        
+        const hours = Math.floor(weightedMinutes / 60);
+        const minutes = Math.round(weightedMinutes % 60);
+        const next = new Date(bowelTimes[0]);
+        next.setTime(next.getTime() + avgInterval * 60 * 60 * 1000);
         next.setHours(hours, minutes, 0, 0);
+        
+        // If predicted time is in the past, move to next day
+        if (next.getTime() < Date.now()) {
+          next.setDate(next.getDate() + 1);
+        }
+        
         return next.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
       })()
-    : "Need 2 bowel logs";
+    : bowelTimes.length >= 2 
+      ? "Building pattern..."
+      : "Need more data";
 
   return {
     visitsPerDay,

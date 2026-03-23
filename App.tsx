@@ -29,7 +29,7 @@ import {
   dismissSessionNotification,
   getInitialSessionResponse,
   isFinishSessionAction,
-  showSessionNotification,
+  startSessionNotificationUpdates,
 } from "./src/notifications";
 
 function AppShell() {
@@ -123,7 +123,7 @@ function AppShell() {
       }
 
       if (nextState === "background" || nextState === "inactive") {
-        void showSessionNotification(appRef.current.activeDraft.startTime as string);
+        void startSessionNotificationUpdates(appRef.current.activeDraft.startTime as string);
         return;
       }
 

@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { buildAnalytics, buildInsights } from "../src/analytics";
 import { demoDailyHealth, demoSessionAnswers, demoSessions } from "../src/demoData";
-import { scheduleDailyReminder } from "../src/notifications";
+import { scheduleDailyReminder, showMilestoneNotification } from "../src/notifications";
 import type {
   AccentKey,
   AnalyticsSummary,
@@ -80,6 +80,14 @@ const emptyDraft: SessionDraft = {
 
 const AppContext = createContext<AppContextValue | null>(null);
 const ACTIVE_DRAFT_KEY = "bowels-active-draft";
+const UNLOCKED_MILESTONES_KEY = "bowels-unlocked-milestones";
+
+const milestones = [
+  { days: 1, title: "First Rhythm", body: "The beginning of a conscious path to harmony." },
+  { days: 7, title: "Steady Flow", body: "Finding balance through consistency and care." },
+  { days: 30, title: "Deep Connection", body: "Listening to the internal whispers of the body." },
+  { days: 100, title: "Master of Self", body: "Complete alignment of mind, habit, and health." },
+];
 
 function buildAnswerMap(answerRows: Array<{ sessionId: number; key: string; value: string }>) {
   return answerRows.reduce<Record<number, Record<string, string>>>((acc, item) => {
@@ -200,6 +208,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const analytics = useMemo(() => buildAnalytics(visibleSessions, visibleAnswers, visibleDailyHealth), [visibleAnswers, visibleDailyHealth, visibleSessions]);
   const insights = useMemo(() => buildInsights(visibleSessions, visibleAnswers), [visibleAnswers, visibleSessions]);
+
+  // Check for newly unlocked milestones
+  useEffect(() => {
+    const checkMilestones = async () => {
+      const progressDays = analytics.milestoneProgressDays;
+      const unlockedStr = await AsyncStorage.getItem(UNLOCKED_MILESTONES_KEY);
+      const unlocked = unlockedStr ? JSON.parse(unlockedStr) : [];
+      
+      for (const milestone of milestones) {
+        if (progressDays >= milestone.days && !unlocked.includes(milestone.days)) {
+          unlocked.push(milestone.days);
+          await AsyncStorage.setItem(UNLOCKED_MILESTONES_KEY, JSON.stringify(unlocked));
+          await showMilestoneNotification(milestone);
+        }
+      }
+    };
+    
+    if (!loading && settings.hasRealData) {
+      void checkMilestones();
+    }
+  }, [analytics.milestoneProgressDays, loading, settings.hasRealData]);
 
   const value: AppContextValue = {
     loading,

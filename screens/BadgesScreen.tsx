@@ -1,14 +1,15 @@
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
 
 const logo = require("../assets/icon.png");
 
 const milestones = [
-  { days: 1, title: "First Rhythm", body: "The beginning of a conscious path to harmony.", tone: "primary" },
-  { days: 7, title: "Steady Flow", body: "Finding balance through consistency and care.", tone: "secondary" },
-  { days: 30, title: "Deep Connection", body: "Listening to the internal whispers of the body.", tone: "locked" },
-  { days: 100, title: "Master of Self", body: "Complete alignment of mind, habit, and health.", tone: "locked" },
+  { days: 1, title: "First Rhythm", body: "The beginning of a conscious path to harmony.", tone: "primary", icon: "spa" },
+  { days: 7, title: "Steady Flow", body: "Finding balance through consistency and care.", tone: "secondary", icon: "waves" },
+  { days: 30, title: "Deep Connection", body: "Listening to the internal whispers of the body.", tone: "locked", icon: "favorite" },
+  { days: 100, title: "Master of Self", body: "Complete alignment of mind, habit, and health.", tone: "locked", icon: "emoji-events" },
 ] as const;
 
 function getNextMilestone(progressDays: number) {
@@ -17,12 +18,107 @@ function getNextMilestone(progressDays: number) {
 
 function badgeBackground(palette: any, tone: string): [string, string] {
   if (tone === "primary") {
-    return [palette.primaryFixed, palette.primaryContainer];
+    return [palette.primaryFixedDim || palette.primary, palette.primaryContainer];
   }
   if (tone === "secondary") {
-    return [palette.secondaryContainer, palette.secondary];
+    return [palette.secondaryFixed || palette.secondary, palette.secondary];
   }
   return [palette.surfaceContainerHighest, palette.surfaceContainerHigh];
+}
+
+function MilestoneCard({ milestone, index, earned, locked, accent, palette, progressDays }: any) {
+  const scaleAnim = useRef(new Animated.Value(earned ? 1 : 0.95)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (earned) {
+      // Entry animation
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+
+      // Subtle pulse animation for earned badges
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Rotation animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(rotateAnim, {
+            toValue: 1,
+            duration: 8000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotateAnim, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [earned, scaleAnim, rotateAnim, pulseAnim]);
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.milestoneCard,
+        {
+          backgroundColor: locked ? `${palette.surfaceContainerLow}` : palette.surfaceContainerLowest,
+          opacity: locked ? (index === 2 ? 0.72 : 0.52) : 1,
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
+    >
+      {locked ? <MaterialIcons name="lock" size={18} color={`${palette.onSurfaceVariant}66`} style={styles.lockIcon} /> : null}
+
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <LinearGradient colors={badgeBackground(palette, milestone.tone)} style={styles.badgeShell}>
+          <Animated.View style={{ transform: [{ rotate: earned ? rotate : "0deg" }] }}>
+            <MaterialIcons 
+              name={milestone.icon as any} 
+              size={64} 
+              color={locked ? `${palette.onSurfaceVariant}66` : accent}
+              style={styles.badgeIcon}
+            />
+          </Animated.View>
+          <View style={styles.badgeRing} />
+        </LinearGradient>
+      </Animated.View>
+
+      <View style={styles.textBlock}>
+        <Text style={[styles.cardTitle, { color: locked ? `${palette.onSurfaceVariant}` : palette.onSurface }]}>{milestone.title}</Text>
+        <Text style={[styles.cardBody, { color: locked ? `${palette.onSurfaceVariant}BB` : palette.onSurfaceVariant }]}>{milestone.body}</Text>
+      </View>
+
+      <View style={[styles.pill, { backgroundColor: locked ? palette.surfaceContainerHighest : `${accent}14` }]}>
+        <Text style={[styles.pillText, { color: locked ? `${palette.onSurfaceVariant}88` : accent }]}>
+          {earned ? `${milestone.days} Day${milestone.days === 1 ? "" : "s"} Achieved` : index === 2 ? `Locked (${progressDays}/${milestone.days})` : `${milestone.days} Days Goal`}
+        </Text>
+      </View>
+    </Animated.View>
+  );
 }
 
 export function BadgesScreen({ palette, progressDays }: { palette: any; progressDays: number }) {
@@ -67,48 +163,30 @@ export function BadgesScreen({ palette, progressDays }: { palette: any; progress
           const locked = !earned;
           const accent = milestone.tone === "secondary" ? palette.secondary : palette.primary;
           return (
-            <View
+            <MilestoneCard
               key={milestone.days}
-              style={[
-                styles.milestoneCard,
-                {
-                  backgroundColor: locked ? `${palette.surfaceContainerLow}` : palette.surfaceContainerLowest,
-                  opacity: locked ? (index === 2 ? 0.72 : 0.52) : 1,
-                },
-              ]}
-            >
-              {locked ? <MaterialIcons name="lock" size={18} color={`${palette.onSurfaceVariant}66`} style={styles.lockIcon} /> : null}
-
-              <LinearGradient colors={badgeBackground(palette, milestone.tone)} style={styles.badgeShell}>
-                <Image source={logo} style={[styles.badgeArt, locked && styles.lockedArt]} resizeMode="contain" />
-                <View style={styles.badgeRing} />
-              </LinearGradient>
-
-              <View style={styles.textBlock}>
-                <Text style={[styles.cardTitle, { color: locked ? `${palette.onSurfaceVariant}` : palette.onSurface }]}>{milestone.title}</Text>
-                <Text style={[styles.cardBody, { color: locked ? `${palette.onSurfaceVariant}BB` : palette.onSurfaceVariant }]}>{milestone.body}</Text>
-              </View>
-
-              <View style={[styles.pill, { backgroundColor: locked ? palette.surfaceContainerHighest : `${accent}14` }]}>
-                <Text style={[styles.pillText, { color: locked ? `${palette.onSurfaceVariant}88` : accent }]}>
-                  {earned ? `${milestone.days} Day${milestone.days === 1 ? "" : "s"} Achieved` : index === 2 ? `Locked (${progressDays}/${milestone.days})` : `${milestone.days} Days Goal`}
-                </Text>
-              </View>
-            </View>
+              milestone={milestone}
+              index={index}
+              earned={earned}
+              locked={locked}
+              accent={accent}
+              palette={palette}
+              progressDays={progressDays}
+            />
           );
         })}
       </View>
 
       <View style={[styles.heroCard, { backgroundColor: `${palette.surfaceContainerHigh}AA` }]}>
-        <LinearGradient colors={[`${palette.tertiaryContainer}55`, `${palette.tertiary ?? palette.secondary}22`]} style={styles.heroBadge}>
+        <LinearGradient colors={[`${palette.tertiary}55`, `${palette.tertiary}22`]} style={styles.heroBadge}>
           <Image source={logo} style={[styles.heroArt, styles.lockedArt]} resizeMode="contain" />
         </LinearGradient>
         <Text style={[styles.heroTitle, { color: palette.onSurfaceVariant }]}>Eternal Sanctuary</Text>
         <Text style={[styles.heroBody, { color: `${palette.onSurfaceVariant}CC` }]}>
           The ultimate milestone. A year of dedicated wellness and listening to your inner rhythm.
         </Text>
-        <View style={[styles.pill, { backgroundColor: `${palette.tertiary ?? palette.secondary}12` }]}>
-          <Text style={[styles.pillText, { color: `${palette.tertiary ?? palette.secondary}99` }]}>The Final Frontier</Text>
+        <View style={[styles.pill, { backgroundColor: `${palette.tertiary}12` }]}>
+          <Text style={[styles.pillText, { color: `${palette.tertiary}99` }]}>The Final Frontier</Text>
         </View>
       </View>
     </ScrollView>
@@ -153,6 +231,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+  },
+  badgeIcon: {
+    textShadowColor: "rgba(0,0,0,0.1)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   badgeArt: { width: 92, height: 92 },
   badgeRing: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 999, borderWidth: 4, borderColor: "rgba(255,255,255,0.18)" },
