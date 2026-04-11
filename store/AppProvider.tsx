@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import { Appearance } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +20,7 @@ import type {
   ThemeMode,
 } from "../src/types";
 import {
+  clearAllData,
   readDailyHealth,
   readSessionAnswers,
   readSessions,
@@ -52,6 +53,7 @@ type AppContextValue = {
   setReminderHour: (hour: number) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   markHasRealData: () => Promise<void>;
+  resetToDemo: () => Promise<void>;
 };
 
 const defaultSettings: AppSettings = {
@@ -118,22 +120,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const persistSettings = async (next: AppSettings) => {
+  const persistSettings = useCallback(async (next: AppSettings) => {
     setSettings(next);
     await saveSettings(next);
     if (next.notificationsEnabled) {
       await scheduleDailyReminder(next.reminderHour);
     }
-  };
+  }, []);
 
-  const markHasRealData = async () => {
+  const markHasRealData = useCallback(async () => {
     if (settings.hasRealData) {
       return;
     }
     await persistSettings({ ...settings, hasRealData: true });
-  };
+  }, [settings, persistSettings]);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     const [sessionRows, answerRows, healthRows, settingRows] = await Promise.all([
       readSessions(),
       readSessionAnswers(),
@@ -164,10 +166,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSettings(defaultSettings);
       setScreen("onboarding");
     }
-  };
+  }, []);
 
   useEffect(() => {
-    reload().finally(() => setLoading(false));
+    reload()
+      .catch((error) => {
+        console.error("Failed to load app data:", error);
+        // Set default state even if loading fails
+        setSettings(defaultSettings);
+        setScreen("onboarding");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -207,30 +216,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const visibleDailyHealth = usingDemo ? demoDailyHealth : dailyHealth;
 
   const analytics = useMemo(() => buildAnalytics(visibleSessions, visibleAnswers, visibleDailyHealth), [visibleAnswers, visibleDailyHealth, visibleSessions]);
-  const insights = useMemo(() => buildInsights(visibleSessions, visibleAnswers), [visibleAnswers, visibleSessions]);
+  const insights = useMemo(() => buildInsights(visibleSessions, visibleAnswers, visibleDailyHealth), [visibleAnswers, visibleSessions, visibleDailyHealth]);
 
   // Check for newly unlocked milestones
   useEffect(() => {
     const checkMilestones = async () => {
+      // Only check milestones for real data, not demo
+      if (usingDemo) return;
+      
       const progressDays = analytics.milestoneProgressDays;
       const unlockedStr = await AsyncStorage.getItem(UNLOCKED_MILESTONES_KEY);
-      const unlocked = unlockedStr ? JSON.parse(unlockedStr) : [];
+      const unlocked: number[] = unlockedStr ? JSON.parse(unlockedStr) : [];
       
+      let hasNewMilestone = false;
       for (const milestone of milestones) {
         if (progressDays >= milestone.days && !unlocked.includes(milestone.days)) {
           unlocked.push(milestone.days);
-          await AsyncStorage.setItem(UNLOCKED_MILESTONES_KEY, JSON.stringify(unlocked));
+          hasNewMilestone = true;
           await showMilestoneNotification(milestone);
         }
+      }
+      
+      if (hasNewMilestone) {
+        await AsyncStorage.setItem(UNLOCKED_MILESTONES_KEY, JSON.stringify(unlocked));
       }
     };
     
     if (!loading && settings.hasRealData) {
       void checkMilestones();
     }
-  }, [analytics.milestoneProgressDays, loading, settings.hasRealData]);
+  }, [analytics.milestoneProgressDays, loading, settings.hasRealData, usingDemo]);
 
-  const value: AppContextValue = {
+  const value: AppContextValue = useMemo(() => ({
     loading,
     screen,
     setScreen,
@@ -307,7 +324,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setScreen("home");
     },
     markHasRealData,
-  };
+    resetToDemo: async () => {
+      await clearAllData();
+      await AsyncStorage.removeItem(UNLOCKED_MILESTONES_KEY);
+      await AsyncStorage.removeItem("last-health-check");
+      await persistSettings({ ...settings, hasRealData: false });
+      await reload();
+      setScreen("home");
+    },
+  }), [loading, screen, visibleSessions, visibleDailyHealth, settings, analytics, insights, reload, activeDraft, markHasRealData, persistSettings]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

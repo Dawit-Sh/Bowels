@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { memo } from "react";
 
 import { Card, GradientButton, OptionChip, SectionTitle } from "../components/UI";
 import { quickLogPresets, stoolTypeMeta } from "../src/sessionMeta";
@@ -12,6 +13,10 @@ const healthOptions = {
   stress: ["Low", "Medium", "High"],
   sleep: ["Poor", "Fair", "Great"],
   exercise: ["None", "Light", "Active"],
+  caffeine: ["None", "Low", "Medium", "High"],
+  alcohol: ["None", "Light", "Moderate", "Heavy"],
+  medication: ["None", "Prescribed", "OTC", "Both"],
+  mood: ["Happy", "Neutral", "Sad", "Anxious", "Stressed"],
 } as const;
 
 export function HomeScreen({
@@ -53,9 +58,16 @@ export function HomeScreen({
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <SectionTitle palette={palette} title="Your Rhythm is steady today." subtitle="Fast, local-first tracking with quick log, daily health, and predictive insights." />
 
+      {latestInsight ? (
+        <Card palette={palette} style={{ borderLeftWidth: 4, borderLeftColor: latestInsight.severity === "high" ? "#ba1a1a" : latestInsight.severity === "warning" ? palette.secondary : palette.primary }}>
+          <Text style={[styles.cardTitle, { color: palette.onSurface }]}>{latestInsight.title}</Text>
+          <Text style={[styles.body, { color: palette.onSurfaceVariant }]}>{latestInsight.body}</Text>
+        </Card>
+      ) : null}
+
       <View style={styles.badges}>
-        <Badge palette={palette} label={`Next likely bowel time: ${analytics.predictedNextTimeLabel}`} tone="primary" />
-        <Badge palette={palette} label={`Avg duration ${Math.round(analytics.averageDurationSeconds / 60) || 0}m`} tone="secondary" />
+        <MemoizedBadge palette={palette} label={`Next likely bowel time: ${analytics.predictedNextTimeLabel}`} tone="primary" />
+        <MemoizedBadge palette={palette} label={`Avg duration ${Math.round(analytics.averageDurationSeconds / 60) || 0}m`} tone="secondary" />
       </View>
 
       <Card palette={palette}>
@@ -121,29 +133,23 @@ export function HomeScreen({
       </Card>
 
       <View style={styles.quickLinks}>
-        <QuickLink palette={palette} label="Weekly Wrapped" icon="auto-awesome" onPress={() => setScreen("weekly")} />
-        <QuickLink palette={palette} label="Milestones" icon="emoji-events" onPress={() => setScreen("badges")} />
-        <QuickLink palette={palette} label="Health Info" icon="health-and-safety" onPress={() => setScreen("health")} />
+        <MemoizedQuickLink palette={palette} icon="auto-awesome" onPress={() => setScreen("weekly")} />
+        <MemoizedQuickLink palette={palette} icon="emoji-events" onPress={() => setScreen("badges")} />
+        <MemoizedQuickLink palette={palette} icon="health-and-safety" onPress={() => setScreen("health")} />
       </View>
-
-      {latestInsight ? (
-        <Card palette={palette} style={{ borderLeftWidth: 4, borderLeftColor: latestInsight.severity === "high" ? "#ba1a1a" : latestInsight.severity === "warning" ? palette.secondary : palette.primary }}>
-          <Text style={[styles.cardTitle, { color: palette.onSurface }]}>{latestInsight.title}</Text>
-          <Text style={[styles.body, { color: palette.onSurfaceVariant }]}>{latestInsight.body}</Text>
-        </Card>
-      ) : null}
     </ScrollView>
   );
 }
 
-function QuickLink({ palette, label, icon, onPress }: { palette: any; label: string; icon: keyof typeof MaterialIcons.glyphMap; onPress: () => void }) {
+function QuickLink({ palette, icon, onPress }: { palette: any; icon: keyof typeof MaterialIcons.glyphMap; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={[styles.quickCard, { backgroundColor: palette.surfaceContainerLowest }]}>
-      <MaterialIcons name={icon} size={24} color={palette.primary} />
-      <Text style={[styles.quickLabel, { color: palette.onSurface }]}>{label}</Text>
+      <MaterialIcons name={icon} size={32} color={palette.primary} />
     </Pressable>
   );
 }
+
+const MemoizedQuickLink = memo(QuickLink);
 
 function Badge({ palette, label, tone }: { palette: any; label: string; tone: "primary" | "secondary" }) {
   const bg = tone === "primary" ? `${palette.primary}14` : `${palette.secondary}14`;
@@ -154,6 +160,8 @@ function Badge({ palette, label, tone }: { palette: any; label: string; tone: "p
     </View>
   );
 }
+
+const MemoizedBadge = memo(Badge);
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 24, paddingBottom: 160, gap: 20 },
@@ -175,8 +183,7 @@ const styles = StyleSheet.create({
   fieldBlock: { gap: 10 },
   fieldLabel: { fontFamily: "Manrope_700Bold", fontSize: 14, textTransform: "capitalize" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  quickLinks: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  quickCard: { width: "30.5%", minWidth: 96, borderRadius: 28, padding: 20, gap: 12 },
-  quickLabel: { fontFamily: "Manrope_700Bold", fontSize: 16 },
+  quickLinks: { flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "center" },
+  quickCard: { width: 80, height: 80, borderRadius: 20, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   body: { fontFamily: "Manrope_400Regular", fontSize: 14, lineHeight: 20 },
 });

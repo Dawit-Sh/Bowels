@@ -4,7 +4,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import * as Sharing from "expo-sharing";
 import { captureRef } from "react-native-view-shot";
 
-import { Card, SectionTitle } from "../components/UI";
+import { Card } from "../components/UI";
 import { stoolTypeMeta } from "../src/sessionMeta";
 import type { AnalyticsSummary } from "../src/types";
 
@@ -43,6 +43,8 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
       const uri = await captureRef(viewRef, {
         format: "png",
         quality: 1,
+        width: 1080,
+        height: 1920,
       });
       
       if (await Sharing.isAvailableAsync()) {
@@ -60,8 +62,11 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View ref={viewRef} collapsable={false} style={styles.shareableContent}>
-        <SectionTitle palette={palette} title="Your Weekly Rhythm" subtitle="Your personalized wellness journey this week." />
+      <View ref={viewRef} collapsable={false} style={[styles.shareableContent, { backgroundColor: palette.background, padding: 24 }]}>
+        <View style={styles.brandingHeader}>
+          <Text style={[styles.appName, { color: palette.primary }]}>Bowels</Text>
+          <Text style={[styles.wrappedTitle, { color: palette.onSurface }]}>Weekly Wrapped</Text>
+        </View>
         <Card palette={palette} style={styles.hero}>
           <Text style={[styles.streak, { color: palette.primary }]}>{analytics.totalVisits}</Text>
           <Text style={[styles.label, { color: palette.onSurfaceVariant }]}>Total visits this week</Text>
@@ -76,11 +81,13 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
         <View style={styles.grid}>
           <Card palette={palette} style={styles.square}>
             <Text style={[styles.cardTitle, { color: palette.onSurface }]}>Avg Duration</Text>
-            <Text style={[styles.big, { color: palette.primary }]}>{Math.round(analytics.averageDurationSeconds / 60)}m</Text>
+            <View style={styles.metricWrap}>
+              <Text style={[styles.big, { color: palette.primary }]}>{Math.round(analytics.averageDurationSeconds / 60)}m</Text>
+            </View>
           </Card>
           <Card palette={palette} style={styles.square}>
             <Text style={[styles.cardTitle, { color: palette.onSurface }]}>Common</Text>
-            <View style={styles.commonWrap}>
+            <View style={styles.metricWrap}>
               <Text style={[styles.commonLabel, { color: palette.secondary }]}>{commonMeta.short}</Text>
             </View>
           </Card>
@@ -112,7 +119,10 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 24, paddingBottom: 160, gap: 20 },
-  shareableContent: { gap: 20 },
+  shareableContent: { gap: 20, borderRadius: 24 },
+  brandingHeader: { alignItems: "center", gap: 4, marginBottom: 12 },
+  appName: { fontFamily: "Manrope_800ExtraBold", fontSize: 16, textTransform: "uppercase", letterSpacing: 2 },
+  wrappedTitle: { fontFamily: "Manrope_700Bold", fontSize: 32 },
   hero: { alignItems: "center", justifyContent: "center", minHeight: 220 },
   streak: { fontFamily: "Manrope_800ExtraBold", fontSize: 72 },
   label: { fontFamily: "Manrope_700Bold", fontSize: 12, textTransform: "uppercase", letterSpacing: 1.6 },
@@ -120,11 +130,11 @@ const styles = StyleSheet.create({
   personalityType: { fontFamily: "Manrope_800ExtraBold", fontSize: 28, textAlign: "center" },
   personalityDesc: { fontFamily: "Manrope_500Medium", fontSize: 14, textAlign: "center" },
   grid: { flexDirection: "row", gap: 12 },
-  square: { flex: 1, aspectRatio: 1, justifyContent: "space-between" },
-  cardTitle: { fontFamily: "Manrope_700Bold", fontSize: 22 },
-  big: { fontFamily: "Manrope_800ExtraBold", fontSize: 36 },
-  commonWrap: { flex: 1, justifyContent: "flex-end" },
-  commonLabel: { fontFamily: "Manrope_800ExtraBold", fontSize: 30 },
+  square: { flex: 1, minHeight: 160, padding: 20 },
+  cardTitle: { fontFamily: "Manrope_700Bold", fontSize: 16, marginBottom: 8 },
+  metricWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
+  big: { fontFamily: "Manrope_800ExtraBold", fontSize: 48 },
+  commonLabel: { fontFamily: "Manrope_800ExtraBold", fontSize: 36 },
   body: { fontFamily: "Manrope_400Regular", fontSize: 14, lineHeight: 20 },
   quirkCard: { alignItems: "center", gap: 12, paddingVertical: 28 },
   quirkTitle: { fontFamily: "Manrope_700Bold", fontSize: 20, textAlign: "center" },

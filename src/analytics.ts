@@ -48,34 +48,61 @@ export function buildAnalytics(sessions: SessionRecord[], answers: AnswerMap, da
   const predictedNextTimeLabel = bowelTimes.length >= 3
     ? (() => {
         // Use weighted average: recent sessions have more weight
-        const recentSessions = bowelTimes.slice(0, Math.min(10, bowelTimes.length));
-        const weights = recentSessions.map((_, idx) => Math.pow(0.85, idx)); // Exponential decay
+        const recentSessions = bowelTimes.slice(0, Math.min(14, bowelTimes.length));
+        const weights = recentSessions.map((_, idx) => Math.pow(0.88, idx)); // Exponential decay
         const totalWeight = weights.reduce((sum, w) => sum + w, 0);
         
+        // Group by day of week for pattern detection
+        const dayOfWeekPatterns: Record<number, number[]> = {};
+        recentSessions.forEach((date) => {
+          const dayOfWeek = date.getDay();
+          const minutes = date.getHours() * 60 + date.getMinutes();
+          if (!dayOfWeekPatterns[dayOfWeek]) dayOfWeekPatterns[dayOfWeek] = [];
+          dayOfWeekPatterns[dayOfWeek].push(minutes);
+        });
+        
+        // Calculate weighted average time
         const weightedMinutes = recentSessions.reduce((sum, date, idx) => {
           const minutes = date.getHours() * 60 + date.getMinutes();
           return sum + minutes * weights[idx];
         }, 0) / totalWeight;
         
-        // Calculate time intervals between sessions to estimate next occurrence
+        // Calculate time intervals between sessions for frequency prediction
         const intervals: number[] = [];
-        for (let i = 0; i < recentSessions.length - 1; i++) {
+        for (let i = 0; i < Math.min(10, recentSessions.length - 1); i++) {
           intervals.push((recentSessions[i].getTime() - recentSessions[i + 1].getTime()) / (1000 * 60 * 60));
         }
-        const avgInterval = intervals.length > 0 ? intervals.reduce((sum, val) => sum + val, 0) / intervals.length : 24;
+        const avgInterval = intervals.length > 0 
+          ? intervals.reduce((sum, val) => sum + val, 0) / intervals.length 
+          : 24;
         
-        const hours = Math.floor(weightedMinutes / 60);
-        const minutes = Math.round(weightedMinutes % 60);
+        // Predict next occurrence
         const next = new Date(bowelTimes[0]);
         next.setTime(next.getTime() + avgInterval * 60 * 60 * 1000);
-        next.setHours(hours, minutes, 0, 0);
         
-        // If predicted time is in the past, move to next day
-        if (next.getTime() < Date.now()) {
-          next.setDate(next.getDate() + 1);
+        // Check if we have a day-of-week pattern for the predicted day
+        const predictedDayOfWeek = next.getDay();
+        if (dayOfWeekPatterns[predictedDayOfWeek] && dayOfWeekPatterns[predictedDayOfWeek].length >= 2) {
+          // Use day-specific average
+          const dayAvg = dayOfWeekPatterns[predictedDayOfWeek].reduce((sum, m) => sum + m, 0) / dayOfWeekPatterns[predictedDayOfWeek].length;
+          const hours = Math.floor(dayAvg / 60);
+          const minutes = Math.round(dayAvg % 60);
+          next.setHours(hours, minutes, 0, 0);
+        } else {
+          // Use overall weighted average
+          const hours = Math.floor(weightedMinutes / 60);
+          const minutes = Math.round(weightedMinutes % 60);
+          next.setHours(hours, minutes, 0, 0);
         }
         
-        return next.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        // If predicted time is in the past, move to next occurrence
+        if (next.getTime() < Date.now()) {
+          next.setTime(next.getTime() + avgInterval * 60 * 60 * 1000);
+        }
+        
+        const dayName = next.toLocaleDateString(undefined, { weekday: 'short' });
+        const timeStr = next.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        return `${dayName} ${timeStr}`;
       })()
     : bowelTimes.length >= 2 
       ? "Building pattern..."
@@ -90,16 +117,25 @@ export function buildAnalytics(sessions: SessionRecord[], answers: AnswerMap, da
     totalVisits,
     totalDurationSeconds,
     predictedNextTimeLabel,
-    milestoneProgressDays: days.filter((day) => sessions.some((session) => session.startTime.slice(0, 10) === day)).length,
+    milestoneProgressDays: getAllUniqueDaysWithSessions(sessions),
   };
 }
 
-export function buildInsights(sessions: SessionRecord[], answers: AnswerMap): InsightItem[] {
+function getAllUniqueDaysWithSessions(sessions: SessionRecord[]): number {
+  const uniqueDays = new Set<string>();
+  sessions.forEach((session) => {
+    uniqueDays.add(session.startTime.slice(0, 10));
+  });
+  return uniqueDays.size;
+}
+
+export function buildInsights(sessions: SessionRecord[], answers: AnswerMap, dailyHealth?: DailyHealthRecord[]): InsightItem[] {
   const items: InsightItem[] = [];
   const bowelSessions = sessions.filter((session) => session.kind === "bowel");
   const today = new Date();
   const latestBowel = bowelSessions[0];
 
+  // Check for gaps in bowel activity
   if (!latestBowel || (today.getTime() - new Date(latestBowel.endTime).getTime()) / (1000 * 60 * 60 * 24) >= 3) {
     items.push({
       id: "no-bowel",
@@ -109,6 +145,7 @@ export function buildInsights(sessions: SessionRecord[], answers: AnswerMap): In
     });
   }
 
+  // Analyze stool type patterns
   const lastStool = latestBowel ? Number(answers[latestBowel.id]?.stool_type ?? 0) : 0;
   if ([1, 2].includes(lastStool)) {
     items.push({
@@ -127,6 +164,7 @@ export function buildInsights(sessions: SessionRecord[], answers: AnswerMap): In
     });
   }
 
+  // Check for long sessions
   const longSessions = sessions.filter((session) => session.durationSeconds >= 12 * 60);
   if (longSessions.length >= 2) {
     items.push({
@@ -137,6 +175,159 @@ export function buildInsights(sessions: SessionRecord[], answers: AnswerMap): In
     });
   }
 
+  // Analyze pain patterns
+  const recentPainSessions = bowelSessions.slice(0, 5).filter((session) => 
+    ["moderate", "severe"].includes(answers[session.id]?.pain ?? "")
+  );
+  if (recentPainSessions.length >= 2) {
+    items.push({
+      id: "pain-pattern",
+      title: "Pain pattern detected",
+      body: "Multiple recent sessions with moderate to severe pain. Consider consulting a healthcare provider if this persists.",
+      severity: "high",
+    });
+  }
+
+  // Analyze blood presence
+  const recentBloodSessions = bowelSessions.slice(0, 7).filter((session) => 
+    answers[session.id]?.blood === "true"
+  );
+  if (recentBloodSessions.length >= 1) {
+    items.push({
+      id: "blood-detected",
+      title: "Blood detected in recent sessions",
+      body: "Blood in stool should be evaluated by a healthcare provider, especially if recurring.",
+      severity: "high",
+    });
+  }
+
+  // Analyze urgency patterns
+  const highUrgencySessions = bowelSessions.slice(0, 7).filter((session) => 
+    Number(answers[session.id]?.urgency ?? 0) >= 4
+  );
+  if (highUrgencySessions.length >= 3) {
+    items.push({
+      id: "high-urgency",
+      title: "Frequent high urgency",
+      body: "Multiple sessions with high urgency (4-5). This may indicate digestive sensitivity or stress.",
+      severity: "warning",
+    });
+  }
+
+  // Analyze adaptive tags (bloating, straining, gas)
+  const recentTaggedSessions = bowelSessions.slice(0, 7);
+  const tagCounts = { bloating: 0, straining: 0, gas: 0 };
+  recentTaggedSessions.forEach((session) => {
+    const tags = (answers[session.id]?.adaptive_tags ?? "").split(",").filter(Boolean);
+    tags.forEach((tag) => {
+      if (tag in tagCounts) tagCounts[tag as keyof typeof tagCounts]++;
+    });
+  });
+
+  if (tagCounts.straining >= 3) {
+    items.push({
+      id: "straining-pattern",
+      title: "Frequent straining detected",
+      body: "Straining during bowel movements may indicate low fiber, dehydration, or other digestive issues.",
+      severity: "warning",
+    });
+  }
+
+  if (tagCounts.bloating >= 3) {
+    items.push({
+      id: "bloating-pattern",
+      title: "Recurring bloating",
+      body: "Frequent bloating may be related to diet, food sensitivities, or eating habits. Consider tracking trigger foods.",
+      severity: "info",
+    });
+  }
+
+  // Analyze daily health correlations if available
+  if (dailyHealth && dailyHealth.length > 0) {
+    const recentHealth = dailyHealth.slice(0, 7);
+    
+    // Check caffeine correlation
+    const highCaffeineDays = recentHealth.filter(h => 
+      ["High", "Very High", "Excessive"].includes(h.caffeine)
+    ).length;
+    const looseStools = bowelSessions.slice(0, 7).filter(s => 
+      [6, 7].includes(Number(answers[s.id]?.stool_type ?? 0))
+    ).length;
+    
+    if (highCaffeineDays >= 3 && looseStools >= 2) {
+      items.push({
+        id: "caffeine-correlation",
+        title: "Caffeine may be affecting digestion",
+        body: "High caffeine intake correlates with looser stools. Consider reducing intake to see if symptoms improve.",
+        severity: "info",
+      });
+    }
+
+    // Check stress correlation
+    const highStressDays = recentHealth.filter(h => 
+      ["High", "Very High", "Extreme"].includes(h.stress)
+    ).length;
+    const urgentSessions = bowelSessions.slice(0, 7).filter(s => 
+      Number(answers[s.id]?.urgency ?? 0) >= 4
+    ).length;
+    
+    if (highStressDays >= 3 && urgentSessions >= 2) {
+      items.push({
+        id: "stress-correlation",
+        title: "Stress may be impacting digestion",
+        body: "High stress levels correlate with increased urgency. Stress management techniques may help.",
+        severity: "info",
+      });
+    }
+
+    // Check sleep correlation
+    const poorSleepDays = recentHealth.filter(h => 
+      ["Poor", "Very Poor", "None"].includes(h.sleep)
+    ).length;
+    
+    if (poorSleepDays >= 4) {
+      items.push({
+        id: "sleep-pattern",
+        title: "Poor sleep pattern detected",
+        body: "Consistent poor sleep can affect digestive health. Aim for 7-9 hours of quality sleep.",
+        severity: "warning",
+      });
+    }
+
+    // Check alcohol correlation
+    const alcoholDays = recentHealth.filter(h => 
+      !["None", ""].includes(h.alcohol)
+    ).length;
+    const irregularStools = bowelSessions.slice(0, 7).filter(s => {
+      const type = Number(answers[s.id]?.stool_type ?? 0);
+      return type <= 2 || type >= 6;
+    }).length;
+    
+    if (alcoholDays >= 2 && irregularStools >= 2) {
+      items.push({
+        id: "alcohol-correlation",
+        title: "Alcohol may be affecting regularity",
+        body: "Alcohol consumption correlates with irregular stool patterns. Consider moderating intake.",
+        severity: "info",
+      });
+    }
+
+    // Check mood patterns
+    const negativeMoodDays = recentHealth.filter(h => 
+      ["Sad", "Anxious", "Stressed", "Angry"].includes(h.mood)
+    ).length;
+    
+    if (negativeMoodDays >= 4) {
+      items.push({
+        id: "mood-pattern",
+        title: "Mood affecting wellness",
+        body: "Negative mood patterns can impact digestive health. Consider stress management or speaking with a professional.",
+        severity: "info",
+      });
+    }
+  }
+
+  // Default positive insight if no issues
   if (!items.length) {
     items.push({
       id: "steady",

@@ -1,4 +1,5 @@
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
 
 import { Card, GradientButton, OptionChip, SectionTitle } from "../components/UI";
 import { stoolTypeMeta } from "../src/sessionMeta";
@@ -11,12 +12,51 @@ export function QuestionsScreen({
   draft,
   updateDraft,
   saveQuestions,
+  saveDailyHealth,
+  dailyHealth,
 }: {
   palette: any;
   draft: SessionDraft;
   updateDraft: (patch: Partial<SessionDraft>) => void;
   saveQuestions: () => Promise<void>;
+  saveDailyHealth: (input: any) => Promise<void>;
+  dailyHealth: any;
 }) {
+  const [localHealth, setLocalHealth] = useState(dailyHealth);
+  const today = new Date().toISOString().slice(0, 10);
+  const hasFilledToday = dailyHealth.lastUpdated === today;
+
+  const handleSave = async () => {
+    if (!hasFilledToday) {
+      Alert.alert(
+        "Daily Health Check",
+        "Have you updated your daily health check (sleep, fiber, water)?",
+        [
+          {
+            text: "Skip for Now",
+            style: "cancel",
+            onPress: () => {
+              void saveQuestions();
+            },
+          },
+          {
+            text: "Yes, Save All",
+            onPress: async () => {
+              await saveDailyHealth(localHealth);
+              await saveQuestions();
+            },
+          },
+        ]
+      );
+    } else {
+      await saveQuestions();
+    }
+  };
+
+  const updateLocalHealth = (field: string, value: string) => {
+    setLocalHealth({ ...localHealth, [field]: value });
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <SectionTitle palette={palette} title="Session complete" subtitle={`Duration ${Math.floor(draft.durationSeconds / 60)}:${String(draft.durationSeconds % 60).padStart(2, "0")}`} />
@@ -88,13 +128,61 @@ export function QuestionsScreen({
         </Card>
       )}
 
-      <GradientButton palette={palette} label="Save to Journal" icon="save" onPress={() => void saveQuestions()} />
+      <Card palette={palette}>
+        <Text style={[styles.sectionTitle, { color: palette.primary }]}>Quick Health Check</Text>
+        <Text style={[styles.subtitle, { color: palette.onSurfaceVariant }]}>
+          {hasFilledToday ? "Already filled today ✓" : "Help us provide better insights"}
+        </Text>
+        
+        <Text style={[styles.label, { color: palette.onSurface }]}>Last Night's Sleep</Text>
+        <View style={styles.chips}>
+          {(["Poor", "Fair", "Great"] as const).map((value) => (
+            <OptionChip
+              key={value}
+              palette={palette}
+              label={value}
+              active={localHealth.sleep === value}
+              onPress={() => updateLocalHealth("sleep", value)}
+            />
+          ))}
+        </View>
+
+        <Text style={[styles.label, { color: palette.onSurface }]}>Today's Fiber Intake</Text>
+        <View style={styles.chips}>
+          {(["Low", "Medium", "High"] as const).map((value) => (
+            <OptionChip
+              key={value}
+              palette={palette}
+              label={value}
+              active={localHealth.fiber === value}
+              onPress={() => updateLocalHealth("fiber", value)}
+            />
+          ))}
+        </View>
+
+        <Text style={[styles.label, { color: palette.onSurface }]}>Water Intake Today</Text>
+        <View style={styles.chips}>
+          {(["Low", "Okay", "Great"] as const).map((value) => (
+            <OptionChip
+              key={value}
+              palette={palette}
+              label={value}
+              active={localHealth.water === value}
+              onPress={() => updateLocalHealth("water", value)}
+            />
+          ))}
+        </View>
+      </Card>
+
+      <GradientButton palette={palette} label="Save to Journal" icon="save" onPress={() => void handleSave()} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 24, paddingBottom: 160, gap: 20 },
-  label: { fontFamily: "Manrope_700Bold", fontSize: 14 },
+  label: { fontFamily: "Manrope_700Bold", fontSize: 14, marginTop: 12 },
+  sectionTitle: { fontFamily: "Manrope_700Bold", fontSize: 18 },
+  subtitle: { fontFamily: "Manrope_400Regular", fontSize: 13, marginBottom: 8 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, AppState, View } from "react-native";
+import { Alert, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as SystemUI from "expo-system-ui";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts, Manrope_400Regular, Manrope_500Medium, Manrope_700Bold, Manrope_800ExtraBold } from "@expo-google-fonts/manrope";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
@@ -12,6 +13,8 @@ import { AppProvider, useApp, useResolvedThemeMode } from "./store/AppProvider";
 import { buildPalette } from "./src/theme";
 import { BottomNav } from "./components/BottomNav";
 import { ScreenHeader } from "./components/ScreenHeader";
+import { FloatingTimer } from "./components/FloatingTimer";
+import { DailyHealthModal } from "./components/DailyHealthModal";
 import { HomeScreen } from "./screens/HomeScreen";
 import { ActiveSessionScreen } from "./screens/ActiveSessionScreen";
 import { QuestionsScreen } from "./screens/QuestionsScreen";
@@ -29,7 +32,6 @@ import {
   dismissSessionNotification,
   getInitialSessionResponse,
   isFinishSessionAction,
-  startSessionNotificationUpdates,
 } from "./src/notifications";
 
 function AppShell() {
@@ -38,6 +40,8 @@ function AppShell() {
   const themeMode = useResolvedThemeMode(app.settings.themeMode);
   const palette = buildPalette(themeMode, app.settings.accent);
   const [liveSeconds, setLiveSeconds] = useState(0);
+  const [showHealthModal, setShowHealthModal] = useState(false);
+  
   const latestHealth = app.dailyHealth[0]
     ? {
         water: app.dailyHealth[0].water,
@@ -46,6 +50,11 @@ function AppShell() {
         stress: app.dailyHealth[0].stress,
         sleep: app.dailyHealth[0].sleep,
         exercise: app.dailyHealth[0].exercise,
+        caffeine: app.dailyHealth[0].caffeine || "None",
+        alcohol: app.dailyHealth[0].alcohol || "None",
+        medication: app.dailyHealth[0].medication || "None",
+        mood: app.dailyHealth[0].mood || "Neutral",
+        lastUpdated: app.dailyHealth[0].day,
       }
     : {
         water: "Okay",
@@ -54,12 +63,48 @@ function AppShell() {
         stress: "Low",
         sleep: "Fair",
         exercise: "Light",
+        caffeine: "None",
+        alcohol: "None",
+        medication: "None",
+        mood: "Neutral",
+        lastUpdated: "",
       };
-  const sessionRunning = Boolean(app.activeDraft.startTime && !app.activeDraft.endTime && app.screen === "active");
+  const sessionRunning = Boolean(app.activeDraft.startTime && !app.activeDraft.endTime);
+  const showFloatingTimer = sessionRunning && app.screen !== "active" && app.screen !== "questions";
 
   useEffect(() => {
     appRef.current = app;
   }, [app]);
+
+  // Check if we should show daily health modal on new day
+  useEffect(() => {
+    const checkDailyHealth = async () => {
+      if (app.loading || !app.settings.hasOnboarded) return;
+      
+      const today = new Date().toISOString().slice(0, 10);
+      const lastCheck = await AsyncStorage.getItem("last-health-check");
+      
+      if (lastCheck !== today) {
+        // New day, show modal
+        setShowHealthModal(true);
+        await AsyncStorage.setItem("last-health-check", today);
+      }
+    };
+    
+    void checkDailyHealth();
+  }, [app.loading, app.settings.hasOnboarded]);
+
+  // Check for updates on app start
+  useEffect(() => {
+    if (!app.loading && app.settings.hasOnboarded) {
+      const { checkForUpdates } = require("./src/autoUpdate");
+      void checkForUpdates("2.0.2", true); // Update version from package.json
+    }
+  }, [app.loading, app.settings.hasOnboarded]);
+
+  const handleHealthUpdate = async (field: string, value: string) => {
+    await app.saveDailyHealth({ ...latestHealth, [field]: value });
+  };
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(palette.background).catch(() => undefined);
@@ -111,29 +156,6 @@ function AppShell() {
     return () => {
       mounted = false;
       subscription?.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      const running = Boolean(appRef.current.activeDraft.startTime && !appRef.current.activeDraft.endTime && appRef.current.screen === "active");
-      if (!running) {
-        void dismissSessionNotification();
-        return;
-      }
-
-      if (nextState === "background" || nextState === "inactive") {
-        void startSessionNotificationUpdates(appRef.current.activeDraft.startTime as string);
-        return;
-      }
-
-      if (nextState === "active") {
-        void dismissSessionNotification();
-      }
-    });
-
-    return () => {
-      subscription.remove();
     };
   }, []);
 
@@ -206,15 +228,30 @@ function AppShell() {
         {app.screen === "onboarding" ? <OnboardingScreen palette={palette} completeOnboarding={app.completeOnboarding} /> : null}
         {app.screen === "home" ? <HomeScreen palette={palette} sessions={app.sessions} insights={app.insights} analytics={app.analytics} dailyHealth={latestHealth} setScreen={app.setScreen} startSession={app.startSession} saveDailyHealth={app.saveDailyHealth} quickLogBowel={app.quickLogBowel} /> : null}
         {app.screen === "active" ? <ActiveSessionScreen palette={palette} timerLabel={timerLabel} draft={app.activeDraft} updateDraft={app.updateDraft} startSession={app.startSession} finishSession={app.finishSession} cancelSession={app.cancelSession} /> : null}
-        {app.screen === "questions" ? <QuestionsScreen palette={palette} draft={app.activeDraft} updateDraft={app.updateDraft} saveQuestions={app.saveQuestions} /> : null}
+        {app.screen === "questions" ? <QuestionsScreen palette={palette} draft={app.activeDraft} updateDraft={app.updateDraft} saveQuestions={app.saveQuestions} saveDailyHealth={app.saveDailyHealth} dailyHealth={latestHealth} /> : null}
         {app.screen === "history" ? <HistoryScreen palette={palette} sessions={app.sessions} onExport={() => void exportData()} onImport={() => void importData()} /> : null}
         {app.screen === "analytics" ? <AnalyticsScreen palette={palette} analytics={app.analytics} insights={app.insights} /> : null}
         {app.screen === "weekly" ? <WeeklyWrappedScreen palette={palette} analytics={app.analytics} /> : null}
         {app.screen === "badges" ? <BadgesScreen palette={palette} progressDays={app.analytics.milestoneProgressDays} /> : null}
         {app.screen === "health" ? <HealthInfoScreen palette={palette} /> : null}
-        {app.screen === "settings" ? <SettingsScreen palette={palette} settings={app.settings} setThemeMode={app.setThemeMode} setAccent={app.setAccent} setReminderHour={app.setReminderHour} /> : null}
+        {app.screen === "settings" ? <SettingsScreen palette={palette} settings={app.settings} setThemeMode={app.setThemeMode} setAccent={app.setAccent} setReminderHour={app.setReminderHour} resetToDemo={app.resetToDemo} /> : null}
+        {showFloatingTimer ? (
+          <FloatingTimer
+            palette={palette}
+            timerLabel={timerLabel}
+            onFinish={app.finishSession}
+            onOpen={() => app.setScreen("active")}
+          />
+        ) : null}
       </View>
       {showChrome ? <BottomNav palette={palette} screen={app.screen === "questions" ? "active" : app.screen} setScreen={app.setScreen} /> : null}
+      <DailyHealthModal
+        visible={showHealthModal}
+        palette={palette}
+        dailyHealth={latestHealth}
+        onUpdate={handleHealthUpdate}
+        onClose={() => setShowHealthModal(false)}
+      />
     </SafeAreaView>
   );
 }

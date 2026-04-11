@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS daily_health (
   stress TEXT NOT NULL,
   sleep TEXT NOT NULL,
   exercise TEXT NOT NULL,
+  caffeine TEXT DEFAULT 'None',
+  alcohol TEXT DEFAULT 'None',
+  medication TEXT DEFAULT 'None',
+  mood TEXT DEFAULT 'Neutral',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

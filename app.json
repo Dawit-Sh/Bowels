@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bowels",
     "slug": "bowels",
-    "version": "1.0.0",
+    "version": "2.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -22,7 +22,8 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#fbfbe2"
       },
-      "package": "com.d_ave.bowels"
+      "package": "com.d_ave.bowels",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "plugins": [
       "expo-document-picker",
@@ -35,6 +36,7 @@
     },
     "updates": {
       "enabled": false
-    }
+    },
+    "jsEngine": "hermes"
   }
 }

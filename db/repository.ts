@@ -49,18 +49,29 @@ export async function saveSession(draft: SessionDraft) {
 export async function upsertDailyHealth(day: string, input: DailyHealthInput) {
   const db = await getDb();
   const existing = await db.getFirstAsync<{ id: number }>("SELECT id FROM daily_health WHERE day = ?", [day]);
-  const values = [input.water, input.fiber, input.meals, input.stress, input.sleep, input.exercise];
+  const values = [
+    input.water, 
+    input.fiber, 
+    input.meals, 
+    input.stress, 
+    input.sleep, 
+    input.exercise,
+    input.caffeine || 'None',
+    input.alcohol || 'None',
+    input.medication || 'None',
+    input.mood || 'Neutral'
+  ];
 
   if (existing) {
     await db.runAsync(
-      "UPDATE daily_health SET water = ?, fiber = ?, meals = ?, stress = ?, sleep = ?, exercise = ?, updated_at = ? WHERE day = ?",
+      "UPDATE daily_health SET water = ?, fiber = ?, meals = ?, stress = ?, sleep = ?, exercise = ?, caffeine = ?, alcohol = ?, medication = ?, mood = ?, updated_at = ? WHERE day = ?",
       [...values, nowIso(), day]
     );
     return;
   }
 
   await db.runAsync(
-    "INSERT INTO daily_health (day, water, fiber, meals, stress, sleep, exercise, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO daily_health (day, water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [day, ...values, nowIso(), nowIso()]
   );
 }
@@ -93,7 +104,7 @@ export async function readSessionAnswers() {
 export async function readDailyHealth() {
   const db = await getDb();
   return db.getAllAsync<DailyHealthRecord>(
-    "SELECT id, day, water, fiber, meals, stress, sleep, exercise, created_at AS createdAt, updated_at AS updatedAt FROM daily_health ORDER BY day DESC"
+    "SELECT id, day, water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, mood, created_at AS createdAt, updated_at AS updatedAt FROM daily_health ORDER BY day DESC"
   );
 }
 
@@ -202,6 +213,10 @@ function normalizeArchive(raw: any): NormalizedArchive {
         stress: String(health.stress ?? ""),
         sleep: String(health.sleep ?? ""),
         exercise: String(health.exercise ?? ""),
+        caffeine: String(health.caffeine ?? "None"),
+        alcohol: String(health.alcohol ?? "None"),
+        medication: String(health.medication ?? "None"),
+        mood: String(health.mood ?? "Neutral"),
         createdAt: toIsoDate(health.created_at),
         updatedAt: toIsoDate(health.updated_at ?? health.created_at),
       }))
@@ -273,8 +288,8 @@ export async function importArchiveData(archive: any) {
 
   for (const health of normalized.dailyHealth) {
     await db.runAsync(
-      "INSERT OR REPLACE INTO daily_health (day, water, fiber, meals, stress, sleep, exercise, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [health.day, health.water, health.fiber, health.meals, health.stress, health.sleep, health.exercise, health.createdAt, health.updatedAt]
+      "INSERT OR REPLACE INTO daily_health (day, water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [health.day, health.water, health.fiber, health.meals, health.stress, health.sleep, health.exercise, health.caffeine || 'None', health.alcohol || 'None', health.medication || 'None', health.mood || 'Neutral', health.createdAt, health.updatedAt]
     );
   }
 
