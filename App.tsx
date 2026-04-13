@@ -5,7 +5,6 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as SystemUI from "expo-system-ui";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts, Manrope_400Regular, Manrope_500Medium, Manrope_700Bold, Manrope_800ExtraBold } from "@expo-google-fonts/manrope";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 

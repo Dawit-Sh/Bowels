@@ -81,7 +81,7 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
       
       await MediaLibrary.saveToLibraryAsync(uri);
       Alert.alert("Saved!", "Your Weekly Wrapped has been saved to your gallery.");
-    } catch (error) {
+    } catch {
       Alert.alert("Save failed", "Unable to save to gallery.");
     }
   };

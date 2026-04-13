@@ -54,7 +54,6 @@ export function HomeScreen({
 
   // Generate dynamic status message based on actual data
   const todayCount = dailyBars[6].count;
-  const yesterdayCount = dailyBars[5].count;
   const last7DaysCount = dailyBars.reduce((sum, day) => sum + day.count, 0);
   const avgPerDay = last7DaysCount / 7;
   
