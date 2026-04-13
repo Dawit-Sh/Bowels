@@ -57,7 +57,7 @@ export function SettingsScreen({
           },
         ]
       );
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to check for updates. Please check your internet connection.");
     }
   };
