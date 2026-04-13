@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Sharing from "expo-sharing";
+import * as MediaLibrary from "expo-media-library";
 import { captureRef } from "react-native-view-shot";
 
 import { Card } from "../components/UI";
@@ -60,6 +61,31 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
     }
   };
 
+  const saveToGallery = async () => {
+    try {
+      if (!viewRef.current) return;
+      
+      // Request permission
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Please grant permission to save images to your gallery.");
+        return;
+      }
+      
+      const uri = await captureRef(viewRef, {
+        format: "png",
+        quality: 1,
+        width: 1080,
+        height: 1920,
+      });
+      
+      await MediaLibrary.saveToLibraryAsync(uri);
+      Alert.alert("Saved!", "Your Weekly Wrapped has been saved to your gallery.");
+    } catch (error) {
+      Alert.alert("Save failed", "Unable to save to gallery.");
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View ref={viewRef} collapsable={false} style={[styles.shareableContent, { backgroundColor: palette.background, padding: 24 }]}>
@@ -88,7 +114,9 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
           <Card palette={palette} style={styles.square}>
             <Text style={[styles.cardTitle, { color: palette.onSurface }]}>Common</Text>
             <View style={styles.metricWrap}>
-              <Text style={[styles.commonLabel, { color: palette.secondary }]}>{commonMeta.short}</Text>
+              <Text style={[styles.commonLabel, { color: palette.secondary }]} numberOfLines={2} adjustsFontSizeToFit>
+                {commonMeta.short}
+              </Text>
             </View>
           </Card>
         </View>
@@ -113,6 +141,14 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
         <MaterialIcons name="share" size={24} color={palette.onPrimary} />
         <Text style={[styles.shareText, { color: palette.onPrimary }]}>Share to Instagram</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[styles.saveButton, { backgroundColor: palette.secondary }]}
+        onPress={saveToGallery}
+      >
+        <MaterialIcons name="save-alt" size={24} color={palette.onPrimary} />
+        <Text style={[styles.shareText, { color: palette.onPrimary }]}>Save to Gallery</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -134,7 +170,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: "Manrope_700Bold", fontSize: 16, marginBottom: 8 },
   metricWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
   big: { fontFamily: "Manrope_800ExtraBold", fontSize: 48 },
-  commonLabel: { fontFamily: "Manrope_800ExtraBold", fontSize: 36 },
+  commonLabel: { fontFamily: "Manrope_800ExtraBold", fontSize: 32, textAlign: "center" },
   body: { fontFamily: "Manrope_400Regular", fontSize: 14, lineHeight: 20 },
   quirkCard: { alignItems: "center", gap: 12, paddingVertical: 28 },
   quirkTitle: { fontFamily: "Manrope_700Bold", fontSize: 20, textAlign: "center" },
@@ -147,6 +183,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 999,
     marginTop: 12,
+  },
+  saveButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 999,
   },
   shareText: { fontFamily: "Manrope_700Bold", fontSize: 16 },
 });

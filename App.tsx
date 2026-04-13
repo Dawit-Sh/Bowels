@@ -13,8 +13,6 @@ import { AppProvider, useApp, useResolvedThemeMode } from "./store/AppProvider";
 import { buildPalette } from "./src/theme";
 import { BottomNav } from "./components/BottomNav";
 import { ScreenHeader } from "./components/ScreenHeader";
-import { FloatingTimer } from "./components/FloatingTimer";
-import { DailyHealthModal } from "./components/DailyHealthModal";
 import { HomeScreen } from "./screens/HomeScreen";
 import { ActiveSessionScreen } from "./screens/ActiveSessionScreen";
 import { QuestionsScreen } from "./screens/QuestionsScreen";
@@ -32,6 +30,8 @@ import {
   dismissSessionNotification,
   getInitialSessionResponse,
   isFinishSessionAction,
+  startSessionNotificationUpdates,
+  stopSessionNotificationUpdates,
 } from "./src/notifications";
 
 function AppShell() {
@@ -40,7 +40,6 @@ function AppShell() {
   const themeMode = useResolvedThemeMode(app.settings.themeMode);
   const palette = buildPalette(themeMode, app.settings.accent);
   const [liveSeconds, setLiveSeconds] = useState(0);
-  const [showHealthModal, setShowHealthModal] = useState(false);
   
   const latestHealth = app.dailyHealth[0]
     ? {
@@ -70,41 +69,10 @@ function AppShell() {
         lastUpdated: "",
       };
   const sessionRunning = Boolean(app.activeDraft.startTime && !app.activeDraft.endTime);
-  const showFloatingTimer = sessionRunning && app.screen !== "active" && app.screen !== "questions";
 
   useEffect(() => {
     appRef.current = app;
   }, [app]);
-
-  // Check if we should show daily health modal on new day
-  useEffect(() => {
-    const checkDailyHealth = async () => {
-      if (app.loading || !app.settings.hasOnboarded) return;
-      
-      const today = new Date().toISOString().slice(0, 10);
-      const lastCheck = await AsyncStorage.getItem("last-health-check");
-      
-      if (lastCheck !== today) {
-        // New day, show modal
-        setShowHealthModal(true);
-        await AsyncStorage.setItem("last-health-check", today);
-      }
-    };
-    
-    void checkDailyHealth();
-  }, [app.loading, app.settings.hasOnboarded]);
-
-  // Check for updates on app start
-  useEffect(() => {
-    if (!app.loading && app.settings.hasOnboarded) {
-      const { checkForUpdates } = require("./src/autoUpdate");
-      void checkForUpdates("2.0.2", true); // Update version from package.json
-    }
-  }, [app.loading, app.settings.hasOnboarded]);
-
-  const handleHealthUpdate = async (field: string, value: string) => {
-    await app.saveDailyHealth({ ...latestHealth, [field]: value });
-  };
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(palette.background).catch(() => undefined);
@@ -162,8 +130,11 @@ function AppShell() {
   useEffect(() => {
     if (!sessionRunning) {
       void dismissSessionNotification();
+      stopSessionNotificationUpdates();
+    } else if (app.activeDraft.startTime) {
+      void startSessionNotificationUpdates(app.activeDraft.startTime);
     }
-  }, [sessionRunning]);
+  }, [sessionRunning, app.activeDraft.startTime]);
 
   const timerLabel = `${String(Math.floor(liveSeconds / 60)).padStart(2, "0")}:${String(liveSeconds % 60).padStart(2, "0")}`;
 
@@ -234,24 +205,9 @@ function AppShell() {
         {app.screen === "weekly" ? <WeeklyWrappedScreen palette={palette} analytics={app.analytics} /> : null}
         {app.screen === "badges" ? <BadgesScreen palette={palette} progressDays={app.analytics.milestoneProgressDays} /> : null}
         {app.screen === "health" ? <HealthInfoScreen palette={palette} /> : null}
-        {app.screen === "settings" ? <SettingsScreen palette={palette} settings={app.settings} setThemeMode={app.setThemeMode} setAccent={app.setAccent} setReminderHour={app.setReminderHour} resetToDemo={app.resetToDemo} /> : null}
-        {showFloatingTimer ? (
-          <FloatingTimer
-            palette={palette}
-            timerLabel={timerLabel}
-            onFinish={app.finishSession}
-            onOpen={() => app.setScreen("active")}
-          />
-        ) : null}
+        {app.screen === "settings" ? <SettingsScreen palette={palette} settings={app.settings} setThemeMode={app.setThemeMode} setAccent={app.setAccent} setReminderHour={app.setReminderHour} /> : null}
       </View>
       {showChrome ? <BottomNav palette={palette} screen={app.screen === "questions" ? "active" : app.screen} setScreen={app.setScreen} /> : null}
-      <DailyHealthModal
-        visible={showHealthModal}
-        palette={palette}
-        dailyHealth={latestHealth}
-        onUpdate={handleHealthUpdate}
-        onClose={() => setShowHealthModal(false)}
-      />
     </SafeAreaView>
   );
 }

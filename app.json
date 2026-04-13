@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bowels",
     "slug": "bowels",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -27,15 +27,19 @@
     },
     "plugins": [
       "expo-document-picker",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Bowels to save your Weekly Wrapped images to your photo library.",
+          "savePhotosPermission": "Allow Bowels to save images to your photo library."
+        }
+      ]
     ],
     "extra": {
       "eas": {
         "projectId": "4748c888-d2f8-43e5-a524-ff9e359cfeee"
       }
-    },
-    "updates": {
-      "enabled": false
     },
     "jsEngine": "hermes"
   }

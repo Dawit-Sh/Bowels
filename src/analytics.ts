@@ -47,62 +47,118 @@ export function buildAnalytics(sessions: SessionRecord[], answers: AnswerMap, da
   
   const predictedNextTimeLabel = bowelTimes.length >= 3
     ? (() => {
-        // Use weighted average: recent sessions have more weight
-        const recentSessions = bowelTimes.slice(0, Math.min(14, bowelTimes.length));
-        const weights = recentSessions.map((_, idx) => Math.pow(0.88, idx)); // Exponential decay
-        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+        // Advanced prediction using multiple factors
+        const recentSessions = bowelTimes.slice(0, Math.min(21, bowelTimes.length));
         
-        // Group by day of week for pattern detection
-        const dayOfWeekPatterns: Record<number, number[]> = {};
-        recentSessions.forEach((date) => {
-          const dayOfWeek = date.getDay();
-          const minutes = date.getHours() * 60 + date.getMinutes();
-          if (!dayOfWeekPatterns[dayOfWeek]) dayOfWeekPatterns[dayOfWeek] = [];
-          dayOfWeekPatterns[dayOfWeek].push(minutes);
-        });
-        
-        // Calculate weighted average time
-        const weightedMinutes = recentSessions.reduce((sum, date, idx) => {
-          const minutes = date.getHours() * 60 + date.getMinutes();
-          return sum + minutes * weights[idx];
-        }, 0) / totalWeight;
-        
-        // Calculate time intervals between sessions for frequency prediction
+        // 1. Calculate time intervals between consecutive sessions
         const intervals: number[] = [];
-        for (let i = 0; i < Math.min(10, recentSessions.length - 1); i++) {
-          intervals.push((recentSessions[i].getTime() - recentSessions[i + 1].getTime()) / (1000 * 60 * 60));
+        for (let i = 0; i < recentSessions.length - 1; i++) {
+          const hoursDiff = (recentSessions[i].getTime() - recentSessions[i + 1].getTime()) / (1000 * 60 * 60);
+          intervals.push(hoursDiff);
         }
+        
+        // 2. Detect patterns: daily, every-other-day, or custom frequency
         const avgInterval = intervals.length > 0 
           ? intervals.reduce((sum, val) => sum + val, 0) / intervals.length 
           : 24;
         
-        // Predict next occurrence
-        const next = new Date(bowelTimes[0]);
-        next.setTime(next.getTime() + avgInterval * 60 * 60 * 1000);
+        // Weight recent intervals more heavily
+        const weightedInterval = intervals.length > 0
+          ? intervals.reduce((sum, val, idx) => sum + val * Math.pow(0.85, idx), 0) / 
+            intervals.reduce((sum, _, idx) => sum + Math.pow(0.85, idx), 0)
+          : 24;
         
-        // Check if we have a day-of-week pattern for the predicted day
-        const predictedDayOfWeek = next.getDay();
-        if (dayOfWeekPatterns[predictedDayOfWeek] && dayOfWeekPatterns[predictedDayOfWeek].length >= 2) {
-          // Use day-specific average
-          const dayAvg = dayOfWeekPatterns[predictedDayOfWeek].reduce((sum, m) => sum + m, 0) / dayOfWeekPatterns[predictedDayOfWeek].length;
-          const hours = Math.floor(dayAvg / 60);
-          const minutes = Math.round(dayAvg % 60);
-          next.setHours(hours, minutes, 0, 0);
+        // 3. Analyze day-of-week patterns
+        const dayOfWeekData: Record<number, { times: number[], count: number }> = {};
+        recentSessions.forEach((date) => {
+          const dayOfWeek = date.getDay();
+          const minutesSinceMidnight = date.getHours() * 60 + date.getMinutes();
+          if (!dayOfWeekData[dayOfWeek]) {
+            dayOfWeekData[dayOfWeek] = { times: [], count: 0 };
+          }
+          dayOfWeekData[dayOfWeek].times.push(minutesSinceMidnight);
+          dayOfWeekData[dayOfWeek].count++;
+        });
+        
+        // 4. Analyze time-of-day patterns (morning, afternoon, evening)
+        const timeOfDayBuckets = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+        recentSessions.forEach((date) => {
+          const hour = date.getHours();
+          if (hour >= 5 && hour < 12) timeOfDayBuckets.morning++;
+          else if (hour >= 12 && hour < 17) timeOfDayBuckets.afternoon++;
+          else if (hour >= 17 && hour < 22) timeOfDayBuckets.evening++;
+          else timeOfDayBuckets.night++;
+        });
+        
+        // 5. Calculate consistency score (lower variance = more predictable)
+        const variance = intervals.length > 1
+          ? intervals.reduce((sum, val) => sum + Math.pow(val - avgInterval, 2), 0) / intervals.length
+          : 0;
+        const consistencyScore = Math.max(0, 1 - (Math.sqrt(variance) / avgInterval));
+        
+        // 6. Predict next occurrence time
+        const lastSession = bowelTimes[0];
+        const predictedNext = new Date(lastSession);
+        
+        // Use weighted interval for better accuracy
+        predictedNext.setTime(predictedNext.getTime() + weightedInterval * 60 * 60 * 1000);
+        
+        // 7. Adjust based on day-of-week pattern if strong pattern exists
+        const predictedDayOfWeek = predictedNext.getDay();
+        const dayData = dayOfWeekData[predictedDayOfWeek];
+        
+        if (dayData && dayData.count >= 2) {
+          // Strong day-of-week pattern exists
+          const dayAvgMinutes = dayData.times.reduce((sum, m) => sum + m, 0) / dayData.times.length;
+          
+          // Calculate standard deviation for this day
+          const dayVariance = dayData.times.reduce((sum, m) => sum + Math.pow(m - dayAvgMinutes, 2), 0) / dayData.times.length;
+          const dayConsistency = Math.max(0, 1 - (Math.sqrt(dayVariance) / 60)); // Normalize by 1 hour
+          
+          // If this day has consistent timing, use it
+          if (dayConsistency > 0.7) {
+            const hours = Math.floor(dayAvgMinutes / 60);
+            const minutes = Math.round(dayAvgMinutes % 60);
+            predictedNext.setHours(hours, minutes, 0, 0);
+          }
         } else {
-          // Use overall weighted average
-          const hours = Math.floor(weightedMinutes / 60);
-          const minutes = Math.round(weightedMinutes % 60);
-          next.setHours(hours, minutes, 0, 0);
+          // No strong day pattern, use overall time-of-day preference
+          const preferredTimeOfDay = Object.entries(timeOfDayBuckets).reduce((max, [key, val]) => 
+            val > max.val ? { key, val } : max, { key: 'morning', val: 0 }
+          ).key;
+          
+          // Calculate average time for preferred time-of-day
+          const preferredTimes = recentSessions
+            .filter((date) => {
+              const hour = date.getHours();
+              if (preferredTimeOfDay === 'morning') return hour >= 5 && hour < 12;
+              if (preferredTimeOfDay === 'afternoon') return hour >= 12 && hour < 17;
+              if (preferredTimeOfDay === 'evening') return hour >= 17 && hour < 22;
+              return hour >= 22 || hour < 5;
+            })
+            .map((date) => date.getHours() * 60 + date.getMinutes());
+          
+          if (preferredTimes.length > 0) {
+            const avgPreferredMinutes = preferredTimes.reduce((sum, m) => sum + m, 0) / preferredTimes.length;
+            const hours = Math.floor(avgPreferredMinutes / 60);
+            const minutes = Math.round(avgPreferredMinutes % 60);
+            predictedNext.setHours(hours, minutes, 0, 0);
+          }
         }
         
-        // If predicted time is in the past, move to next occurrence
-        if (next.getTime() < Date.now()) {
-          next.setTime(next.getTime() + avgInterval * 60 * 60 * 1000);
+        // 8. If predicted time is in the past, move forward by interval
+        while (predictedNext.getTime() < Date.now()) {
+          predictedNext.setTime(predictedNext.getTime() + weightedInterval * 60 * 60 * 1000);
         }
         
-        const dayName = next.toLocaleDateString(undefined, { weekday: 'short' });
-        const timeStr = next.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-        return `${dayName} ${timeStr}`;
+        // 9. Format output with confidence indicator
+        const dayName = predictedNext.toLocaleDateString(undefined, { weekday: 'short' });
+        const timeStr = predictedNext.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        
+        // Add confidence indicator based on consistency
+        const confidenceEmoji = consistencyScore > 0.8 ? "🎯" : consistencyScore > 0.6 ? "📊" : "🔮";
+        
+        return `${confidenceEmoji} ${dayName} ${timeStr}`;
       })()
     : bowelTimes.length >= 2 
       ? "Building pattern..."

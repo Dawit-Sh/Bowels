@@ -52,11 +52,70 @@ export function HomeScreen({
     };
   });
 
+  // Generate dynamic status message based on actual data
+  const todayCount = dailyBars[6].count;
+  const yesterdayCount = dailyBars[5].count;
+  const last7DaysCount = dailyBars.reduce((sum, day) => sum + day.count, 0);
+  const avgPerDay = last7DaysCount / 7;
+  
+  const statusMessage = (() => {
+    if (sessions.length === 0) {
+      return "Start tracking your bowel health";
+    }
+    
+    const lastSession = sessions[0];
+    const hoursSinceLastSession = (Date.now() - new Date(lastSession.startTime).getTime()) / (1000 * 60 * 60);
+    
+    if (hoursSinceLastSession > 48) {
+      return "No activity in 2+ days";
+    }
+    
+    if (todayCount === 0 && hoursSinceLastSession < 24) {
+      return "No logs today yet";
+    }
+    
+    if (todayCount > 0) {
+      if (todayCount === Math.round(avgPerDay)) {
+        return "Your rhythm is steady today";
+      } else if (todayCount > avgPerDay) {
+        return "More active than usual today";
+      } else {
+        return "Less active than usual today";
+      }
+    }
+    
+    if (Math.abs(last7DaysCount - 7) <= 1) {
+      return "Consistent daily rhythm";
+    }
+    
+    return "Tracking your bowel health";
+  })();
+  
+  const statusSubtitle = (() => {
+    if (sessions.length === 0) {
+      return "Begin your journey to better digestive health with quick logging and insights.";
+    }
+    
+    const consistency = last7DaysCount > 0 ? Math.min(100, Math.round((last7DaysCount / 7) * 100)) : 0;
+    
+    if (consistency >= 90) {
+      return `${last7DaysCount} sessions this week. Excellent tracking consistency!`;
+    } else if (consistency >= 70) {
+      return `${last7DaysCount} sessions this week. Good tracking habits.`;
+    } else if (consistency >= 50) {
+      return `${last7DaysCount} sessions this week. Keep building the habit.`;
+    } else if (last7DaysCount > 0) {
+      return `${last7DaysCount} session${last7DaysCount === 1 ? '' : 's'} this week. Track daily for better insights.`;
+    }
+    
+    return "Fast, local-first tracking with quick log, daily health, and predictive insights.";
+  })();
+
   const latestInsight = insights[0];
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SectionTitle palette={palette} title="Your Rhythm is steady today." subtitle="Fast, local-first tracking with quick log, daily health, and predictive insights." />
+      <SectionTitle palette={palette} title={statusMessage} subtitle={statusSubtitle} />
 
       {latestInsight ? (
         <Card palette={palette} style={{ borderLeftWidth: 4, borderLeftColor: latestInsight.severity === "high" ? "#ba1a1a" : latestInsight.severity === "warning" ? palette.secondary : palette.primary }}>

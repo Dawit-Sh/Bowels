@@ -1,7 +1,8 @@
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Card, GradientButton, OptionChip, SectionTitle } from "../components/UI";
 import type { AccentKey, AppSettings, ThemeMode } from "../src/types";
+import { APP_VERSION, GITHUB_REPO } from "../src/config";
 
 export function SettingsScreen({
   palette,
@@ -9,28 +10,56 @@ export function SettingsScreen({
   setThemeMode,
   setAccent,
   setReminderHour,
-  resetToDemo,
 }: {
   palette: any;
   settings: AppSettings;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   setAccent: (accent: AccentKey) => Promise<void>;
   setReminderHour: (hour: number) => Promise<void>;
-  resetToDemo: () => Promise<void>;
 }) {
-  const handleReset = () => {
-    Alert.alert(
-      "Reset to Demo Data?",
-      "This will clear all your real data and show 15 days of demo data. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: () => void resetToDemo(),
-        },
-      ]
-    );
+  const handleCheckUpdates = async () => {
+    try {
+      const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+      
+      if (!response.ok) {
+        Alert.alert("Check Failed", "Unable to check for updates. Please try again later.");
+        return;
+      }
+      
+      const data = await response.json();
+      const latestVersion = data.tag_name; // e.g., "v2.0.2"
+      
+      if (latestVersion === APP_VERSION) {
+        Alert.alert("Up to Date", "You're running the latest version!");
+        return;
+      }
+      
+      // Find the APK asset
+      const apkAsset = data.assets.find((asset: any) => asset.name.endsWith(".apk"));
+      
+      if (!apkAsset) {
+        Alert.alert("No APK Found", "No APK file found in the latest release.");
+        return;
+      }
+      
+      Alert.alert(
+        "Update Available",
+        `Version ${latestVersion} is available. Current version: ${APP_VERSION}\n\nWould you like to download it?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Download",
+            onPress: () => {
+              Linking.openURL(apkAsset.browser_download_url).catch(() => {
+                Alert.alert("Error", "Unable to open download link.");
+              });
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert("Error", "Failed to check for updates. Please check your internet connection.");
+    }
   };
 
   return (
@@ -49,15 +78,15 @@ export function SettingsScreen({
         <View style={styles.row}>{[8, 12, 18, 20, 22].map((value) => <OptionChip key={value} palette={palette} label={`${value}:00`} active={settings.reminderHour === value} onPress={() => void setReminderHour(value)} />)}</View>
       </Card>
       <Card palette={palette}>
-        <Text style={[styles.title, { color: palette.onSurface }]}>Data</Text>
+        <Text style={[styles.title, { color: palette.onSurface }]}>App Updates</Text>
         <Text style={[styles.body, { color: palette.onSurfaceVariant }]}>
-          {settings.hasRealData ? "You're viewing your real data." : "You're viewing demo data."}
+          Check for the latest version on GitHub and download updates.
         </Text>
         <GradientButton
           palette={palette}
-          label="Reset to Demo Data"
-          icon="refresh"
-          onPress={handleReset}
+          label="Check for Updates"
+          icon="system-update"
+          onPress={handleCheckUpdates}
         />
       </Card>
     </ScrollView>
