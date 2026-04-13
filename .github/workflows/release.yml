@@ -50,5 +50,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: .github/RELEASE_TEMPLATE.md
           files: bowels-${{ github.ref_name }}.apk
+          draft: false
+          prerelease: false
