@@ -1,4 +1,4 @@
-import type { AnalyticsSummary, DailyHealthRecord, InsightItem, SessionRecord, StoolType } from "./types";
+import type { AnalyticsSummary, DailyHealthRecord, InsightItem, SessionRecord, StoolType, WeeklyWrappedSummary } from "./types";
 
 type AnswerMap = Record<number, Record<string, string>>;
 
@@ -9,6 +9,14 @@ const lastDays = (days: number) => {
     return date.toISOString().slice(0, 10);
   });
 };
+
+const createDayWindow = (days: number) =>
+  new Array(days).fill(0).map((_, idx) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (days - 1 - idx));
+    return date.toISOString().slice(0, 10);
+  });
 
 export function buildAnalytics(sessions: SessionRecord[], answers: AnswerMap, dailyHealth: DailyHealthRecord[]): AnalyticsSummary {
   const days = lastDays(14);
@@ -174,6 +182,43 @@ export function buildAnalytics(sessions: SessionRecord[], answers: AnswerMap, da
     totalDurationSeconds,
     predictedNextTimeLabel,
     milestoneProgressDays: getAllUniqueDaysWithSessions(sessions),
+  };
+}
+
+export function buildWeeklyWrapped(sessions: SessionRecord[], answers: AnswerMap): WeeklyWrappedSummary {
+  const weekDays = createDayWindow(7);
+  const weekSet = new Set(weekDays);
+  const weeklyBowelSessions = sessions.filter((session) => session.kind === "bowel" && weekSet.has(session.startTime.slice(0, 10)));
+
+  const visitsPerDay = weekDays.map((day) => ({
+    day,
+    count: weeklyBowelSessions.filter((session) => session.startTime.slice(0, 10) === day).length,
+  }));
+
+  const stoolDistribution = ([1, 2, 3, 4, 5, 6, 7] as StoolType[]).map((stoolType) => ({
+    stoolType,
+    count: weeklyBowelSessions.filter((session) => answers[session.id]?.stool_type === String(stoolType)).length,
+  }));
+
+  const totalVisits = weeklyBowelSessions.length;
+  const totalDurationSeconds = weeklyBowelSessions.reduce((sum, item) => sum + item.durationSeconds, 0);
+  const averageDurationSeconds = totalVisits ? Math.round(totalDurationSeconds / totalVisits) : 0;
+  const mostCommon = stoolDistribution.reduce<{ stoolType: StoolType | null; count: number }>(
+    (bestType, item) => (item.count > bestType.count ? item : bestType),
+    { stoolType: null, count: 0 }
+  );
+  const bestDay = visitsPerDay.reduce((best, item) => (item.count > best.count ? item : best), visitsPerDay[0] ?? { day: "", count: 0 });
+  const worstDay = visitsPerDay.reduce((worst, item) => (item.count < worst.count ? item : worst), visitsPerDay[0] ?? { day: "", count: 0 });
+
+  return {
+    totalVisits,
+    averageDurationSeconds,
+    totalDurationSeconds,
+    visitsPerDay,
+    stoolDistribution,
+    mostCommonStoolType: mostCommon.count > 0 ? mostCommon.stoolType : null,
+    bestDay,
+    worstDay,
   };
 }
 

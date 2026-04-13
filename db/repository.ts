@@ -266,13 +266,28 @@ export async function importArchiveData(archive: any) {
   const db = await getDb();
   const normalized = normalizeArchive(archive);
   const sessionIdMap = new Map<number, number>();
+  let importedSessions = 0;
+  let skippedSessions = 0;
+  let importedAnswers = 0;
+  let importedHealthDays = 0;
 
   for (const session of normalized.sessions) {
+    const existingSession = await db.getFirstAsync<{ id: number }>(
+      "SELECT id FROM sessions WHERE kind = ? AND start_time = ? AND end_time = ? AND duration_seconds = ? LIMIT 1",
+      [session.kind, session.startTime, session.endTime, session.durationSeconds]
+    );
+    if (existingSession) {
+      sessionIdMap.set(session.id, existingSession.id);
+      skippedSessions += 1;
+      continue;
+    }
+
     const inserted = await db.runAsync(
       "INSERT INTO sessions (kind, start_time, end_time, duration_seconds, created_at) VALUES (?, ?, ?, ?, ?)",
       [session.kind, session.startTime, session.endTime, session.durationSeconds, session.createdAt]
     );
     sessionIdMap.set(session.id, Number(inserted.lastInsertRowId));
+    importedSessions += 1;
   }
 
   for (const answer of normalized.answers) {
@@ -280,17 +295,29 @@ export async function importArchiveData(archive: any) {
     if (!mappedSessionId) {
       continue;
     }
+    const existingAnswer = await db.getFirstAsync<{ id: number }>(
+      "SELECT id FROM session_answers WHERE session_id = ? AND answer_key = ? LIMIT 1",
+      [mappedSessionId, answer.key]
+    );
+    if (existingAnswer) {
+      continue;
+    }
     await db.runAsync(
       "INSERT INTO session_answers (session_id, answer_key, answer_value, created_at) VALUES (?, ?, ?, ?)",
       [mappedSessionId, answer.key, answer.value, nowIso()]
     );
+    importedAnswers += 1;
   }
 
   for (const health of normalized.dailyHealth) {
+    const existingHealth = await db.getFirstAsync<{ id: number }>("SELECT id FROM daily_health WHERE day = ? LIMIT 1", [health.day]);
     await db.runAsync(
       "INSERT OR REPLACE INTO daily_health (day, water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, mood, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [health.day, health.water, health.fiber, health.meals, health.stress, health.sleep, health.exercise, health.caffeine || 'None', health.alcohol || 'None', health.medication || 'None', health.mood || 'Neutral', health.createdAt, health.updatedAt]
     );
+    if (!existingHealth) {
+      importedHealthDays += 1;
+    }
   }
 
   for (const setting of normalized.settings) {
@@ -299,6 +326,13 @@ export async function importArchiveData(archive: any) {
       [setting.key, setting.value, setting.updatedAt]
     );
   }
+
+  return {
+    importedSessions,
+    skippedSessions,
+    importedAnswers,
+    importedHealthDays,
+  };
 }
 
 export async function clearAllData() {

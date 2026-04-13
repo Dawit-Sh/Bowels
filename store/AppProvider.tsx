@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Appearance } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { buildAnalytics, buildInsights } from "../src/analytics";
+import { buildAnalytics, buildInsights, buildWeeklyWrapped } from "../src/analytics";
 import { demoDailyHealth, demoSessionAnswers, demoSessions } from "../src/demoData";
 import { scheduleDailyReminder, showMilestoneNotification } from "../src/notifications";
 import type {
@@ -18,6 +18,7 @@ import type {
   SessionDraft,
   SessionRecord,
   ThemeMode,
+  WeeklyWrappedSummary,
 } from "../src/types";
 import {
   clearAllData,
@@ -38,6 +39,7 @@ type AppContextValue = {
   dailyHealth: DailyHealthRecord[];
   settings: AppSettings;
   analytics: AnalyticsSummary;
+  weeklyWrapped: WeeklyWrappedSummary;
   insights: InsightItem[];
   refresh: () => Promise<void>;
   activeDraft: SessionDraft;
@@ -216,6 +218,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const visibleDailyHealth = usingDemo ? demoDailyHealth : dailyHealth;
 
   const analytics = useMemo(() => buildAnalytics(visibleSessions, visibleAnswers, visibleDailyHealth), [visibleAnswers, visibleDailyHealth, visibleSessions]);
+  const weeklyWrapped = useMemo(() => buildWeeklyWrapped(visibleSessions, visibleAnswers), [visibleAnswers, visibleSessions]);
   const insights = useMemo(() => buildInsights(visibleSessions, visibleAnswers, visibleDailyHealth), [visibleAnswers, visibleSessions, visibleDailyHealth]);
 
   // Check for newly unlocked milestones
@@ -255,6 +258,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dailyHealth: visibleDailyHealth,
     settings,
     analytics,
+    weeklyWrapped,
     insights,
     refresh: reload,
     activeDraft,
@@ -332,7 +336,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await reload();
       setScreen("home");
     },
-  }), [loading, screen, visibleSessions, visibleDailyHealth, settings, analytics, insights, reload, activeDraft, markHasRealData, persistSettings]);
+  }), [loading, screen, visibleSessions, visibleDailyHealth, settings, analytics, weeklyWrapped, insights, reload, activeDraft, markHasRealData, persistSettings]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

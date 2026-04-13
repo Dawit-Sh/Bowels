@@ -159,10 +159,13 @@ function AppShell() {
         return;
       }
       const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
-      await importArchiveData(JSON.parse(content));
+      const summary = await importArchiveData(JSON.parse(content));
       await app.refresh();
       app.setScreen("history");
-      Alert.alert("Import complete", "Backup data was merged into the local database.");
+      Alert.alert(
+        "Import complete",
+        `${summary.importedSessions} sessions imported, ${summary.skippedSessions} duplicates skipped, ${summary.importedHealthDays} health days merged.`
+      );
     } catch {
       Alert.alert("Import failed", "The selected file is not a valid Bowels archive.");
     }
@@ -195,13 +198,13 @@ function AppShell() {
         />
       ) : null}
       <View style={{ flex: 1 }}>
-        {app.screen === "onboarding" ? <OnboardingScreen palette={palette} completeOnboarding={app.completeOnboarding} /> : null}
+        {app.screen === "onboarding" ? <OnboardingScreen palette={palette} completeOnboarding={app.completeOnboarding} importArchive={importData} /> : null}
         {app.screen === "home" ? <HomeScreen palette={palette} sessions={app.sessions} insights={app.insights} analytics={app.analytics} dailyHealth={latestHealth} setScreen={app.setScreen} startSession={app.startSession} saveDailyHealth={app.saveDailyHealth} quickLogBowel={app.quickLogBowel} /> : null}
         {app.screen === "active" ? <ActiveSessionScreen palette={palette} timerLabel={timerLabel} draft={app.activeDraft} updateDraft={app.updateDraft} startSession={app.startSession} finishSession={app.finishSession} cancelSession={app.cancelSession} /> : null}
         {app.screen === "questions" ? <QuestionsScreen palette={palette} draft={app.activeDraft} updateDraft={app.updateDraft} saveQuestions={app.saveQuestions} saveDailyHealth={app.saveDailyHealth} dailyHealth={latestHealth} /> : null}
         {app.screen === "history" ? <HistoryScreen palette={palette} sessions={app.sessions} onExport={() => void exportData()} onImport={() => void importData()} /> : null}
         {app.screen === "analytics" ? <AnalyticsScreen palette={palette} analytics={app.analytics} insights={app.insights} /> : null}
-        {app.screen === "weekly" ? <WeeklyWrappedScreen palette={palette} analytics={app.analytics} /> : null}
+        {app.screen === "weekly" ? <WeeklyWrappedScreen palette={palette} analytics={app.weeklyWrapped} /> : null}
         {app.screen === "badges" ? <BadgesScreen palette={palette} progressDays={app.analytics.milestoneProgressDays} /> : null}
         {app.screen === "health" ? <HealthInfoScreen palette={palette} /> : null}
         {app.screen === "settings" ? <SettingsScreen palette={palette} settings={app.settings} setThemeMode={app.setThemeMode} setAccent={app.setAccent} setReminderHour={app.setReminderHour} /> : null}

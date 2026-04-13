@@ -7,20 +7,19 @@ import { captureRef } from "react-native-view-shot";
 
 import { Card } from "../components/UI";
 import { stoolTypeMeta } from "../src/sessionMeta";
-import type { AnalyticsSummary } from "../src/types";
+import type { WeeklyWrappedSummary } from "../src/types";
 
-function getQuirkyInsight(analytics: AnalyticsSummary) {
+function getQuirkyInsight(analytics: WeeklyWrappedSummary) {
   const quirks = [
     `You spent ${Math.round(analytics.totalDurationSeconds / 60)} minutes this week in mindful reflection. That's ${Math.round(analytics.totalDurationSeconds / 60 / 7)} minutes per day of self-care.`,
     `Your most productive day had ${analytics.visitsPerDay.reduce((max, day) => Math.max(max, day.count), 0)} visits. Consistency is key!`,
-    `You're in the top ${Math.floor(Math.random() * 15) + 5}% of users who track their wellness journey.`,
     `Your rhythm is ${analytics.totalVisits >= 14 ? "incredibly steady" : analytics.totalVisits >= 7 ? "building momentum" : "just getting started"}. Keep it up!`,
     `If your sessions were songs, you'd have a ${Math.round(analytics.totalDurationSeconds / 60)}-minute wellness playlist.`,
   ];
   return quirks[Math.floor(Math.random() * quirks.length)];
 }
 
-function getPersonalityType(analytics: AnalyticsSummary) {
+function getPersonalityType(analytics: WeeklyWrappedSummary) {
   const avgDuration = analytics.averageDurationSeconds / 60;
   if (avgDuration < 3) return { type: "The Efficient One", desc: "Quick and focused" };
   if (avgDuration < 5) return { type: "The Balanced Soul", desc: "Perfect harmony" };
@@ -28,12 +27,19 @@ function getPersonalityType(analytics: AnalyticsSummary) {
   return { type: "The Zen Master", desc: "Ultimate patience" };
 }
 
-export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; analytics: AnalyticsSummary }) {
+function formatWeekday(day: string) {
+  if (!day) {
+    return "No data";
+  }
+  return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long" });
+}
+
+export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; analytics: WeeklyWrappedSummary }) {
   const viewRef = useRef<View>(null);
-  const best = analytics.visitsPerDay.reduce((bestDay, item) => (item.count > bestDay.count ? item : bestDay), analytics.visitsPerDay[0] ?? { day: "", count: 0 });
-  const worst = analytics.visitsPerDay.reduce((worstDay, item) => (item.count < worstDay.count ? item : worstDay), analytics.visitsPerDay[0] ?? { day: "", count: 0 });
-  const common = analytics.stoolDistribution.reduce((bestType, item) => (item.count > bestType.count ? item : bestType), analytics.stoolDistribution[0] ?? { stoolType: 4, count: 0 });
-  const commonMeta = stoolTypeMeta[common.stoolType];
+  const hasWeeklyData = analytics.totalVisits > 0;
+  const best = analytics.bestDay;
+  const worst = analytics.worstDay;
+  const commonMeta = analytics.mostCommonStoolType ? stoolTypeMeta[analytics.mostCommonStoolType] : null;
   const quirkyInsight = getQuirkyInsight(analytics);
   const personality = getPersonalityType(analytics);
 
@@ -115,7 +121,7 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
             <Text style={[styles.cardTitle, { color: palette.onSurface }]}>Common</Text>
             <View style={styles.metricWrap}>
               <Text style={[styles.commonLabel, { color: palette.secondary }]} numberOfLines={2} adjustsFontSizeToFit>
-                {commonMeta.short}
+                {commonMeta?.short ?? "No data"}
               </Text>
             </View>
           </Card>
@@ -123,8 +129,8 @@ export function WeeklyWrappedScreen({ palette, analytics }: { palette: any; anal
         
         <Card palette={palette}>
           <Text style={[styles.cardTitle, { color: palette.onSurface }]}>Best / Worst Day</Text>
-          <Text style={[styles.body, { color: palette.onSurfaceVariant }]}>Best: {best.day} with {best.count} visits</Text>
-          <Text style={[styles.body, { color: palette.onSurfaceVariant }]}>Worst: {worst.day} with {worst.count} visits</Text>
+          <Text style={[styles.body, { color: palette.onSurfaceVariant }]}>Best: {hasWeeklyData ? formatWeekday(best.day) : "No data"} with {best.count} visits</Text>
+          <Text style={[styles.body, { color: palette.onSurfaceVariant }]}>Worst: {hasWeeklyData ? formatWeekday(worst.day) : "No data"} with {worst.count} visits</Text>
         </Card>
         
         <Card palette={palette} style={styles.quirkCard}>
@@ -170,7 +176,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: "Manrope_700Bold", fontSize: 16, marginBottom: 8 },
   metricWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
   big: { fontFamily: "Manrope_800ExtraBold", fontSize: 48 },
-  commonLabel: { fontFamily: "Manrope_800ExtraBold", fontSize: 32, textAlign: "center" },
+  commonLabel: { fontFamily: "Manrope_800ExtraBold", fontSize: 26, textAlign: "center", lineHeight: 30 },
   body: { fontFamily: "Manrope_400Regular", fontSize: 14, lineHeight: 20 },
   quirkCard: { alignItems: "center", gap: 12, paddingVertical: 28 },
   quirkTitle: { fontFamily: "Manrope_700Bold", fontSize: 20, textAlign: "center" },

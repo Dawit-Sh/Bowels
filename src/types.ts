@@ -89,6 +89,17 @@ export type AnalyticsSummary = {
   milestoneProgressDays: number;
 };
 
+export type WeeklyWrappedSummary = {
+  totalVisits: number;
+  averageDurationSeconds: number;
+  totalDurationSeconds: number;
+  visitsPerDay: Array<{ day: string; count: number }>;
+  stoolDistribution: Array<{ stoolType: StoolType; count: number }>;
+  mostCommonStoolType: StoolType | null;
+  bestDay: { day: string; count: number };
+  worstDay: { day: string; count: number };
+};
+
 export type InsightItem = {
   id: string;
   title: string;

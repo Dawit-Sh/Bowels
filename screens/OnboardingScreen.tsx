@@ -1,4 +1,4 @@
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { Card, GradientButton } from "../components/UI";
@@ -24,9 +24,23 @@ const features = [
     body: "Meaningful patterns shared without judgment.",
     tone: "neutral",
   },
+  {
+    icon: "upload-file",
+    title: "Bring Your History",
+    body: "Import a backup from an earlier Bowels version before you begin.",
+    tone: "primary",
+  },
 ] as const;
 
-export function OnboardingScreen({ palette, completeOnboarding }: { palette: any; completeOnboarding: () => Promise<void> }) {
+export function OnboardingScreen({
+  palette,
+  completeOnboarding,
+  importArchive,
+}: {
+  palette: any;
+  completeOnboarding: () => Promise<void>;
+  importArchive: () => Promise<void>;
+}) {
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.brand}>
@@ -61,6 +75,10 @@ export function OnboardingScreen({ palette, completeOnboarding }: { palette: any
 
       <View style={styles.actions}>
         <GradientButton palette={palette} label="Begin Your Journey" onPress={() => void completeOnboarding()} />
+        <TouchableOpacity style={[styles.secondaryAction, { borderColor: `${palette.primary}44`, backgroundColor: palette.surfaceContainerLowest }]} onPress={() => void importArchive()}>
+          <MaterialIcons name="upload-file" size={18} color={palette.primary} />
+          <Text style={[styles.secondaryActionText, { color: palette.primary }]}>Import from a previous Bowels version</Text>
+        </TouchableOpacity>
         <View style={[styles.privacyBadge, { backgroundColor: palette.surfaceContainerHigh }]}>
           <MaterialIcons name="lock" size={16} color={palette.primary} />
           <Text style={[styles.privacyText, { color: palette.onSurfaceVariant }]}>No accounts. No cloud. Just you and your data.</Text>
@@ -91,6 +109,17 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: "Manrope_700Bold", fontSize: 18, textAlign: "center" },
   cardBody: { fontFamily: "Manrope_400Regular", fontSize: 14, lineHeight: 20, textAlign: "center" },
   actions: { gap: 20, marginTop: 8 },
+  secondaryAction: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  secondaryActionText: { fontFamily: "Manrope_700Bold", fontSize: 14, textAlign: "center" },
   privacyBadge: {
     borderRadius: 999,
     paddingHorizontal: 18,
