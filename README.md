@@ -251,4 +251,4 @@ If you are preparing a release, these files already exist and are worth reading:
 
 ## Version
 
-Current app version in this repo: `2.0.3`
+Current app version in this repo: `2.1.2`
