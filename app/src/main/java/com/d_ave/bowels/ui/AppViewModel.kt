@@ -71,7 +71,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = app.repository
     private val prefs = app.prefs
 
-    private val local = MutableStateFlow(Local(null, prefs.activeDraft ?: SessionDraft(), Connections(watchPromptDismissed = prefs.watchPromptDismissed)))
+    private val local = MutableStateFlow(
+        (prefs.activeDraft ?: SessionDraft()).let { draft -> Local(resumeScreen(draft), draft, Connections(watchPromptDismissed = prefs.watchPromptDismissed)) },
+    )
+
+    /**
+     * However the app is opened (icon, notification, after being swiped away), an unfinished
+     * session comes back where it was: the timer if it's running, the questions if it ended
+     * but wasn't saved.
+     */
+    private fun resumeScreen(draft: SessionDraft): Screen? = when {
+        draft.isRunning -> Screen.Active
+        draft.startTime != null && draft.endTime != null -> Screen.Questions
+        else -> null
+    }
 
     val state: StateFlow<UiState> = combine(repository.data, local) { data, l ->
         if (data == null) return@combine UiState(loading = true, draft = l.draft)

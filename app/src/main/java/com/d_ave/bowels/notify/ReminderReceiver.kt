@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.d_ave.bowels.data.Prefs
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -29,9 +30,11 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 }
 
-/** Alarms are wiped on reboot and on app update. */
+/** Alarms and notifications are wiped on reboot and on app update; put them back. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Notifications.rescheduleFromSaved(context)
+        // A session that was running before the restart keeps its notification and its time.
+        Prefs(context).activeDraft?.takeIf { it.isRunning }?.startTime?.let { Notifications.showSession(context, it) }
     }
 }

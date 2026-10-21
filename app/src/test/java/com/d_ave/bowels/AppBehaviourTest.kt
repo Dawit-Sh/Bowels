@@ -66,6 +66,42 @@ class AppBehaviourTest {
     }
 
     @Test
+    fun `a running session survives the app being closed`() {
+        // Started 7 minutes ago, then the app was swiped away (the process is gone, the prefs stay).
+        val start = java.time.Instant.now().minusSeconds(7 * 60).truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
+        app.prefs.activeDraft = com.d_ave.bowels.data.SessionDraft(startTime = start)
+
+        // Opening it again from the icon, with no notification extra, lands on the timer.
+        val vm = AppViewModel(app)
+        waitUntil { !vm.state.value.loading }
+        assertEquals(Screen.Active, vm.state.value.screen)
+        assertEquals(start, vm.state.value.draft.startTime)
+
+        // "Finish Session" on the notification finishes that same session, with the full time.
+        vm.openDestination(Notifications.DESTINATION_FINISH)
+        waitUntil { vm.state.value.screen == Screen.Questions }
+        assertEquals(Screen.Questions, vm.state.value.screen)
+        assertTrue(vm.state.value.draft.durationSeconds >= 7 * 60)
+
+        // Closed again before saving: it comes back to the questions, not a blank Home.
+        val again = AppViewModel(app)
+        waitUntil { !again.state.value.loading }
+        assertEquals(Screen.Questions, again.state.value.screen)
+    }
+
+    @Test
+    fun `a restart brings the running session's notification back`() {
+        shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+        app.prefs.activeDraft = com.d_ave.bowels.data.SessionDraft(startTime = java.time.Instant.now().minusSeconds(120))
+        com.d_ave.bowels.notify.BootReceiver().onReceive(app, Intent(Intent.ACTION_BOOT_COMPLETED))
+
+        val manager = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val posted = shadowOf(manager).allNotifications.single()
+        assertEquals("Session running", posted.extras.getString(android.app.Notification.EXTRA_TITLE))
+        assertTrue(posted.extras.getBoolean(android.app.Notification.EXTRA_SHOW_CHRONOMETER))
+    }
+
+    @Test
     fun `watch sessions are saved once with their heart rate`() = runBlocking {
         val payload = WatchSessionPayload(
             id = "watch-1", kind = "bowel", startTime = "2026-10-21T07:30:00.000Z", endTime = "2026-10-21T07:36:00.000Z",
