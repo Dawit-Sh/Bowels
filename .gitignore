@@ -1,27 +1,30 @@
-node_modules/
-.expo/
-.expo-shared/
+# Gradle / Android
+.gradle/
+.kotlin/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.keystore
+*.jks
+keystore.properties
 
-dist/
-web-build/
-coverage/
+# IDEs
+.idea/
+*.iml
+.vscode/
 
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
+# OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
+*.log
 *.tmp
 *.temp
-
-android/
-ios/
-
 .env
 .env.*
 !.env.example

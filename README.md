@@ -2,253 +2,123 @@
 
 <div align="center">
 
-### A calm, local-first digestive health tracker built with Expo and React Native
+### A calm, local-first digestive health tracker for Android and Wear OS
 
-Track sessions, log daily health signals, surface patterns, and build a steadier rhythm over time.
+Track sessions, log daily health signals, see heart rate and blood pressure from around each session, and build a steadier rhythm over time.
 
-![Expo](https://img.shields.io/badge/Expo-55-1f2937?style=for-the-badge)
-![React Native](https://img.shields.io/badge/React_Native-0.83-0f766e?style=for-the-badge)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-1d4ed8?style=for-the-badge)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7f52ff?style=for-the-badge)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-0f766e?style=for-the-badge)
+![Wear OS](https://img.shields.io/badge/Wear_OS-companion-1d4ed8?style=for-the-badge)
 ![Local First](https://img.shields.io/badge/Data-Local_First-7c3aed?style=for-the-badge)
 
 </div>
 
 ---
 
-## Why This App Exists
+## What's in 3.0
 
-`Bowels` is designed to make digestive health tracking feel approachable instead of clinical or tedious. The app focuses on fast logging, gentle guidance, and insights grounded in the data the user actually records.
+Bowels 3.0 is a native Kotlin rewrite of the Expo / React Native app (which stays, unchanged, on `main` up to 2.x).
 
-It currently includes:
+- **Native Android app** in Jetpack Compose, same look, same features.
+- **Wear OS companion.** Start and finish a session from your wrist when your phone is in another room. The watch measures your heart rate during the session and syncs to the phone on its own, even if the phone was out of range or switched off at the time.
+- **Heart rate and blood pressure.** For every session, Bowels reads what your watch or blood pressure cuff recorded around that time through Health Connect (Samsung Health, Fitbit, Pixel Watch, Omron and others write there). You can also type a reading in. Read-only: Bowels never writes or shares health data.
+- **Fixed: the weekly report notification** now opens Weekly Wrapped. Before, tapping it did nothing, because only session notifications were routed.
+- **Fixed: shared images.** Weekly Wrapped and milestone images are now drawn at a true 1080x1920 (Instagram story size). Before, the on-screen card was screenshotted and forced into 1080x1920, which stretched it and made it blurry. The Weekly Wrapped screen previews the exact image you'll share.
+- **New: share a milestone** straight from the Milestones screen.
 
-- Fast bowel logging with one-tap stool presets
-- Timed session tracking with follow-up questions
-- Daily health check-ins for water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, and mood
-- Insight cards based on recent patterns
-- Weekly Wrapped summaries
-- Milestones and reminder notifications
-- Import/export for backups and device migration
-- Demo-mode onboarding before real data is added
+### Updating from 2.x keeps your data
+
+The new app opens the same SQLite file the Expo app used (`files/SQLite/bowels.db`) and carries over the running session and announced milestones from AsyncStorage. For an in-place update the APK must be signed with the same key as the Expo builds (see Releases below). Backups exported from 2.x import into 3.0 too.
 
 ---
 
-## User Guide
+## No setup for users
 
-### What You Can Do
+Everything is asked in context, once, through the system's own permission sheets:
 
-| Feature | What it helps with |
+| When | What happens |
 |---|---|
-| Quick Log | Save a bowel entry in one tap |
-| Start Session | Track a live session with elapsed time |
-| Questions | Add stool type, pain, blood, urgency, completion, and tags |
-| Daily Health Check | Log the context around digestion |
-| Insights | Surface recent trends and possible correlations |
-| Weekly Wrapped | Review your week in a more visual summary |
-| History | Export or import your archive |
-| Settings | Pick theme accent and reminder time |
+| Tapping **Begin** in onboarding | Notifications permission, then Health Connect's read permissions for heart rate and blood pressure (if Health Connect is on the phone) |
+| Health Connect missing (Android 13 and older) | A Home card with one button that opens its install page |
+| A Wear OS watch is paired without Bowels | A Home card with **Install on watch**, which opens Bowels' page in the watch's Play Store |
+| First session started on the watch | The heart-rate permission, in the same tap |
+| Ending a session | Heart rate and blood pressure fill in on the questions screen by themselves |
+| Opening the app | Recent sessions without vitals are checked against Health Connect again (watches and cuffs often sync late) |
 
-### First-Time Setup
-
-1. Open the app and complete onboarding.
-2. If you have a previous export, import it during onboarding or later from `Data & Privacy`.
-3. If you are new, start with either `Quick Log` or `Start Session`.
-4. Add a few days of Daily Health Check data to improve insight quality.
-
-### Daily Workflow
-
-### Quick log
-
-Use `Quick Log` when you want speed. Pick the stool type preset and the app saves a short bowel entry immediately.
-
-### Full session
-
-Use `Start Session` when you want richer tracking:
-
-1. Start the timer.
-2. Finish the session when done.
-3. Answer the follow-up questions.
-4. Save and let the app fold that into your analytics.
-
-### Daily health check
-
-Log the surrounding context once per day:
-
-- Water
-- Fiber
-- Meals
-- Stress
-- Sleep
-- Exercise
-- Caffeine
-- Alcohol
-- Medication
-- Mood
-
-These inputs help the app generate more meaningful pattern detection.
-
-### Insights, Weekly Wrapped, and Milestones
-
-- `Insights` highlights recent signals like gaps in logging, recurring pain, blood, hydration patterns, stress-linked urgency, and similar trends.
-- `Weekly Wrapped` turns the week into a more celebratory summary.
-- `Milestones` celebrate consistency as your logged-day streak grows.
-
-### Data, Privacy, and Backups
-
-This app is built to be local-first.
-
-- Session data is stored on-device in SQLite
-- Active draft state and milestone unlock state are stored in AsyncStorage
-- Export creates a JSON archive you can share or keep as a backup
-- Import supports the current archive format and legacy archive migration
-
-If you care about keeping your history safe, export occasionally from `Data & Privacy`.
+Nothing needs to be turned on in system settings.
 
 ---
 
-## Developer Guide
-
-### Stack
-
-- Expo 55
-- React Native 0.83
-- React 19
-- TypeScript
-- Expo SQLite
-- AsyncStorage
-- Expo Notifications
-
-### Local Setup
-
-### Prerequisites
-
-- Node.js 20+ recommended
-- npm
-- Expo-compatible Android/iOS simulator or a physical device
-- EAS CLI if you plan to produce APKs
-
-### Install
-
-```bash
-npm install
-```
-
-### Run the app
-
-```bash
-npm start
-```
-
-Useful variants:
-
-```bash
-npm run android
-npm run ios
-npm run web
-```
-
-### Quality Checks
-
-```bash
-npm run lint
-npm run typecheck
-npm run doctor
-npm run verify
-```
-
-### Build Commands
-
-```bash
-npm run build:apk
-npm run build:apk:local
-```
-
-### Important Development Notes
-
-### Notifications in Expo Go
-
-The notification helpers intentionally no-op in Expo Go (`Constants.executionEnvironment === "storeClient"`). That means reminder and live session notification behavior should be tested in a development build or production-style build, not just Expo Go.
-
-### Local-first behavior
-
-The app does not depend on a backend for its core experience. Most development work happens inside:
-
-- local persistence
-- derived analytics
-- UI states and flows
-
-### Demo mode
-
-New users begin without real data. Until `hasRealData` is set, the app renders seeded demo sessions and health entries so the product feels alive during onboarding.
-
-### Project Structure
+## Project layout
 
 ```text
 .
-|-- App.tsx                # App shell and screen routing
-|-- components/            # Shared presentational building blocks
-|-- screens/               # Main app screens
-|-- store/                 # AppProvider and state orchestration
-|-- db/                    # SQLite client, schema, repository helpers
-|-- src/                   # Analytics, notifications, theme, config, types
-|-- assets/                # Icons and static assets
-|-- scripts/               # Utility scripts
-|-- .github/               # Release templates and workflows
+|-- app/        Phone app (Compose)
+|   |-- data/       SQLite, repository, backups, local prefs
+|   |-- domain/     Analytics, insights, content, demo data
+|   |-- health/     Health Connect reads
+|   |-- notify/     Reminders, weekly report, session and milestone notifications
+|   |-- share/      1080x1920 share images
+|   |-- wear/       Watch sync service and install prompt
+|   |-- ui/         ViewModel, theme, components, screens
+|-- wear/       Wear OS app (Compose for Wear, Health Services, Data Layer)
+|-- shared/     The phone/watch sync contract
+|-- docs/       GitHub Pages site
 ```
 
-### How Data Flows
+### How the watch syncs
 
-1. UI events trigger actions from `AppProvider`.
-2. Repository helpers in `db/repository.ts` persist and read data from SQLite.
-3. `AppProvider` derives analytics, insights, and Weekly Wrapped summaries from stored records.
-4. Screens render those derived values and allow the user to keep logging.
+1. The watch saves each finished session as a Wearable Data Layer item (`/bowels/session/<id>`).
+2. Google Play services keeps it on the watch and delivers it whenever the phone is reachable.
+3. The phone's `WatchSyncService` saves it (de-duplicated by id), looks up blood pressure in Health Connect, then deletes the item.
+4. The deletion syncs back, and the watch shows "All synced".
 
-### Core persisted tables
-
-- `sessions`
-- `session_answers`
-- `daily_health`
-- `settings`
-
-### Key Source Files
-
-- `App.tsx`: top-level app shell, screen selection, import/export, and notification wiring
-- `store/AppProvider.tsx`: central app state, settings persistence, demo-mode switching, and derived summaries
-- `db/repository.ts`: reads, writes, archive export/import, and legacy migration
-- `db/schema.ts`: SQLite schema
-- `src/notifications.ts`: reminder scheduling, live session notification updates, and milestone notifications
-- `screens/HomeScreen.tsx`: quick log, status messaging, and daily check-in entry point
-
-### Release Docs In This Repo
-
-If you are preparing a release, these files already exist and are worth reading:
-
-- `QUICK_RELEASE.md`
-- `CUSTOMIZE_RELEASE.md`
-- `FINAL_RELEASE_COMMANDS.md`
-- `RELEASE_GUIDE_COMPLETE.md`
-- `READY_TO_RELEASE.md`
-
-### Suggested Contributor Workflow
-
-1. Install dependencies with `npm install`.
-2. Run `npm start` and open the app on a device or emulator.
-3. Make focused changes.
-4. Run `npm run lint` and `npm run verify`.
-5. Test the affected flow manually.
-6. If notifications are involved, verify in a dev build rather than Expo Go.
+Vitals are stored as ordinary session answers (`hr_avg`, `hr_min`, `hr_max`, `bp_systolic`, `bp_diastolic`, `bp_time`, and their sources), so backups carry them with no format change.
 
 ---
 
-## Product Principles
+## Developer guide
+
+Requirements: JDK 17 and the Android SDK (platform 35).
+
+```bash
+./gradlew assembleDebug
+```
+
+```bash
+./gradlew :app:testDebugUnitTest
+```
+
+The tests cover analytics and insights, backup import (current and legacy formats), watch session sync and the weekly notification's routing. They also render the share images to `app/build/share-previews/` so you can look at them.
+
+To try the watch with the phone, install both debug APKs (they share the debug key) on a phone and a paired Wear OS watch, or a paired emulator pair.
+
+### Releases
+
+Put the signing key in `keystore.properties` at the repo root (never committed):
+
+```properties
+storeFile=bowels-release.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+For existing 2.x installs to update in place, use the key EAS signed the Expo builds with (`eas credentials`, Android, download the keystore). Phone and watch must be signed with the same key, or the Data Layer won't connect them. The release workflow reads the same values from repository secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`).
+
+The watch app reaches users through the Play Store only (Wear OS doesn't install downloaded APKs without developer mode). Until Bowels is on Play, the watch APK installs with `adb` over Wi-Fi.
+
+```bash
+./gradlew assembleRelease
+```
+
+---
+
+## Product principles
 
 - Fast enough to use in the moment
 - Calm instead of alarming
 - Insightful without pretending certainty
 - Private by default
 - Useful even before a user has a long history
-
----
-
-## Version
-
-Current app version in this repo: `2.1.2`
+- No setup: anything that can be connected is offered in one tap, in context
