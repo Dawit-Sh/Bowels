@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./assets/site.css">
+  <link rel="stylesheet" href="./assets/site.css?v=4">
   <style>
     .guide-hero {
       padding: 4.5rem 0 1.5rem;
@@ -632,8 +632,216 @@
       box-shadow: 0 0 0 3px #3a3a3a, 0 24px 36px rgba(18, 18, 18, 0.22);
     }
 
-    .wrist-gallery figure:nth-child(2) img {
+    .demo-watch {
+      position: relative;
+      width: min(100%, 190px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 10px solid #262626;
+      box-shadow: 0 0 0 3px #3a3a3a, 0 24px 36px rgba(18, 18, 18, 0.22);
+      background: #000;
+      color: #f2f2d9;
+      overflow: hidden;
+      font-family: "Work Sans", sans-serif;
+      display: grid;
+      place-items: center;
+    }
+
+    .demo-clock {
+      position: absolute;
+      top: 9%;
+      left: 50%;
+      translate: -50% 0;
+      font-size: 0.72rem;
+      opacity: 0.85;
+      z-index: 2;
+    }
+
+    .demo-running {
+      display: grid;
+      justify-items: center;
+      gap: 0.25rem;
+      margin-top: 0.4rem;
+    }
+
+    .demo-timer {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 2.3rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .demo-bpm {
+      font-size: 0.8rem;
+      color: #e48a6a;
+    }
+
+    .demo-heart {
+      display: inline-block;
+      color: #e23d3d;
+      animation: heartbeat 0.9s ease-in-out infinite;
+    }
+
+    .demo-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.35rem;
+    }
+
+    .demo-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.9rem;
+      background: #2f2f2f;
+    }
+
+    .demo-btn-ok {
+      width: 40px;
+      height: 40px;
+      background: #8a9a5b;
+    }
+
+    /* The tappable one */
+    .demo-interactive {
+      cursor: ns-resize;
       animation: float 6s ease-in-out infinite;
+    }
+
+    .demo-interactive:hover,
+    .demo-interactive:focus-within {
+      animation-play-state: paused;
+      box-shadow: 0 0 0 3px #3a3a3a, 0 0 0 9px rgba(138, 154, 91, 0.35), 0 24px 36px rgba(18, 18, 18, 0.22);
+    }
+
+    .demo-list {
+      position: absolute;
+      inset: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scroll-snap-type: y proximity;
+      scrollbar-width: none;
+      padding: 34% 9% 40%;
+      display: grid;
+      align-content: start;
+      gap: 0.4rem;
+      outline: none;
+      -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+      mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+    }
+
+    .demo-list[hidden] {
+      display: none;
+    }
+
+    .demo-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .demo-question {
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 0.2rem 0 0.35rem;
+    }
+
+    .demo-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 0;
+      border-radius: 999px;
+      background: #2c2d2a;
+      color: #f2f2d9;
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      scroll-snap-align: center;
+      transform-origin: center;
+      transition: background 160ms var(--ease);
+    }
+
+    .demo-chip:hover,
+    .demo-chip:focus-visible {
+      background: #46503a;
+      outline: none;
+    }
+
+    .demo-chip:active {
+      background: #8a9a5b;
+    }
+
+    .demo-chip span {
+      font-size: 0.95rem;
+    }
+
+    .demo-saved {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 0.15rem;
+      text-align: center;
+      animation: pop 400ms var(--ease) both;
+    }
+
+    .demo-saved[hidden] {
+      display: none;
+    }
+
+    .demo-saved strong {
+      font-size: 1rem;
+    }
+
+    .demo-check {
+      color: #8a9a5b;
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+
+    .demo-note {
+      font-size: 0.6rem;
+      opacity: 0.75;
+      max-width: 120px;
+    }
+
+    .demo-hint {
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      background: rgba(53, 87, 70, 0.1);
+      color: var(--accent-deep);
+      font-size: 0.82rem;
+      font-weight: 700;
+      animation: nudge 2.4s ease-in-out infinite;
+      transition: opacity 300ms var(--ease);
+    }
+
+    .demo-hint.used {
+      opacity: 0;
+    }
+
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      15% { transform: scale(1.25); }
+      30% { transform: scale(1); }
+    }
+
+    @keyframes pop {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes nudge {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
     }
 
     .wrist-gallery figcaption {
@@ -934,12 +1142,28 @@
         <p>Start a session, watch your heart rate as you go, and answer a few taps at the end. Your phone gets everything the next time they're together.</p>
         <div class="wrist-gallery">
           <figure>
-            <img src="./screenshots/watch-running.png" alt="A running session on the watch: 00:33 and 115 bpm" loading="lazy">
+            <div class="demo-watch" role="img" aria-label="A running session on the watch with a live timer and heart rate">
+              <span class="demo-clock" data-demo-clock>2:13</span>
+              <div class="demo-running">
+                <span class="demo-timer" data-demo-timer>00:33</span>
+                <span class="demo-bpm"><span class="demo-heart" aria-hidden="true">♥</span> <span data-demo-bpm>115</span> bpm</span>
+                <span class="demo-buttons" aria-hidden="true"><span class="demo-btn demo-btn-x">✕</span><span class="demo-btn demo-btn-ok">✓</span></span>
+              </div>
+            </div>
             <figcaption><strong>Live heart rate</strong>Timer and pulse, even with the screen off</figcaption>
           </figure>
           <figure>
-            <img src="./screenshots/watch-questions.png" alt="The watch asking how it looked, with Hard and Lumpy options" loading="lazy">
-            <figcaption><strong>One tap per question</strong>Type, look, pain, blood. Done in seconds</figcaption>
+            <div class="demo-watch demo-interactive" id="demo-quiz">
+              <div class="demo-list" id="demo-list" tabindex="0" aria-label="Try the watch: scroll the answers and tap one"></div>
+              <div class="demo-saved" id="demo-saved" hidden>
+                <span class="demo-check" aria-hidden="true">✓</span>
+                <strong>Saved</strong>
+                <span class="demo-bpm"><span class="demo-heart" aria-hidden="true">♥</span> avg 97 bpm</span>
+                <span class="demo-note">Syncs when your phone is near</span>
+              </div>
+            </div>
+            <span class="demo-hint" id="demo-hint">↕ Scroll, then tap an answer</span>
+            <figcaption><strong>One tap per question</strong>Try it: this one works</figcaption>
           </figure>
           <figure>
             <img src="./screenshots/watch-saved.png" alt="The watch showing Saved, average 97 bpm, syncs when your phone is near" loading="lazy">
@@ -1085,6 +1309,91 @@
       new MutationObserver(renderCommands).observe(document.querySelector('[data-release="watch-file"]'), { childList: true, characterData: true, subtree: true });
     })();
   </script>
-  <script src="./assets/release.js" defer></script>
+  <script>
+    // The two live watches at the bottom of the page.
+    (function () {
+      // 1. A running session: the timer counts and the heart rate drifts like a real reading.
+      const timer = document.querySelector('[data-demo-timer]');
+      const bpm = document.querySelector('[data-demo-bpm]');
+      const clock = document.querySelector('[data-demo-clock]');
+      let seconds = 33;
+      let rate = 115;
+      const pad = (n) => String(n).padStart(2, '0');
+      setInterval(() => {
+        seconds += 1;
+        timer.textContent = pad(Math.floor(seconds / 60)) + ':' + pad(seconds % 60);
+        rate = Math.max(92, Math.min(124, rate + Math.round((Math.random() - 0.5) * 6)));
+        bpm.textContent = rate;
+        const now = new Date();
+        clock.textContent = now.getHours() % 12 || 12;
+        clock.textContent += ':' + pad(now.getMinutes());
+      }, 1000);
+
+      // 2. The question flow, scrollable with a mouse wheel, trackpad or finger.
+      const list = document.getElementById('demo-list');
+      const saved = document.getElementById('demo-saved');
+      const hint = document.getElementById('demo-hint');
+      const questions = [
+        ['How did it look?', [['🪨', 'Hard'], ['🥔', 'Lumpy'], ['🌭', 'Firm'], ['🐍', 'Smooth'], ['☁️', 'Soft'], ['🌊', 'Mushy'], ['💧', 'Liquid']]],
+        ['Any pain?', [['😌', 'None'], ['🙂', 'Mild'], ['😣', 'Moderate'], ['😖', 'Severe']]],
+        ['Any blood?', [['✅', 'No'], ['🩸', 'Yes']]],
+      ];
+      let step = 0;
+
+      // Like Wear OS: items shrink and fade as they move away from the middle of the screen.
+      function scaleItems() {
+        const box = list.getBoundingClientRect();
+        const middle = box.top + box.height / 2;
+        list.querySelectorAll('.demo-chip, .demo-question').forEach((item) => {
+          const r = item.getBoundingClientRect();
+          const distance = Math.min(1, Math.abs(r.top + r.height / 2 - middle) / (box.height / 2));
+          item.style.transform = 'scale(' + (1 - 0.22 * distance * distance).toFixed(3) + ')';
+          item.style.opacity = (1 - 0.55 * distance * distance).toFixed(3);
+        });
+      }
+
+      function show(index) {
+        step = index;
+        const [title, options] = questions[index];
+        list.innerHTML = '';
+        const heading = document.createElement('div');
+        heading.className = 'demo-question';
+        heading.textContent = title;
+        list.appendChild(heading);
+        options.forEach(([emoji, label]) => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'demo-chip';
+          chip.innerHTML = '<span aria-hidden="true">' + emoji + '</span>' + label;
+          chip.addEventListener('click', answer);
+          list.appendChild(chip);
+        });
+        list.scrollTop = 0;
+        list.hidden = false;
+        saved.hidden = true;
+        requestAnimationFrame(scaleItems);
+      }
+
+      function answer() {
+        hint.classList.add('used');
+        if (step + 1 < questions.length) {
+          show(step + 1);
+          return;
+        }
+        list.hidden = true;
+        saved.hidden = false;
+        setTimeout(() => show(0), 3200);
+      }
+
+      list.addEventListener('scroll', scaleItems, { passive: true });
+      // Hide the hint once someone actually reaches for it (snap-scrolling alone doesn't count).
+      ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach((type) => {
+        list.addEventListener(type, () => hint.classList.add('used'), { passive: true, once: true });
+      });
+      window.addEventListener('resize', scaleItems);
+      show(0);
+    })();
+  </script>
+  <script src="./assets/release.js?v=4" defer></script>
 </body>
 </html>
