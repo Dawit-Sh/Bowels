@@ -14,6 +14,7 @@ import base64
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 
 PROJECT_ID = "4748c888-d2f8-43e5-a524-ff9e359cfeee"  # "extra.eas.projectId" from the Expo app.json
@@ -58,10 +59,19 @@ def fetch():
     request = urllib.request.Request(
         "https://api.expo.dev/graphql",
         data=json.dumps({"query": QUERY, "variables": {"appId": PROJECT_ID, "package": PACKAGE}}).encode(),
-        headers={"Content-Type": "application/json", "Authorization": "Bearer " + token},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token,
+            "User-Agent": "bowels-release (eas-cli compatible)",
+            "Accept": "application/json",
+        },
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        body = json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            body = json.load(response)
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", "replace")[:400]
+        sys.exit(f"::error::Expo API answered {error.code}: {detail}")
     if body.get("errors"):
         messages = "; ".join(e.get("message", "?") for e in body["errors"])
         sys.exit("::error::Expo API: " + messages)
