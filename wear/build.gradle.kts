@@ -25,6 +25,14 @@ android {
     }
 
     signingConfigs {
+        // One shared, public test key for debug builds, so test builds from any machine or CI
+        // run install over each other. Never used for releases.
+        getByName("debug") {
+            storeFile = rootProject.file("debug-test.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (keystoreProps.isNotEmpty()) {
             create("release") {
                 storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))

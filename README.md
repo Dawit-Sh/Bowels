@@ -130,7 +130,7 @@ Requirements: JDK 17 and the Android SDK (platform 35).
 
 The tests cover analytics and insights, backup import (current and legacy formats), watch session sync and notification routing. They also render the share images to `app/build/share-previews/`.
 
-Debug builds of the phone and watch share the debug key, so they sync with each other on a phone and a paired watch. Debug builds also let you fire reminders from a terminal:
+Debug builds of the phone and watch are signed with `debug-test.keystore`, a public test key kept in the repo, so they sync with each other, and a test build from any machine or CI run installs over the previous one. Every CI run attaches both test APKs to its page under **Actions** for 14 days. Releases never use this key. Debug builds also let you fire reminders from a terminal:
 
 ```bash
 adb shell am broadcast -n com.d_ave.bowels/.notify.ReminderReceiver -a com.d_ave.bowels.REMINDER_WEEKLY
