@@ -29,3 +29,14 @@ jobs:
 
       - name: Build phone and watch
         run: ./gradlew assembleDebug
+
+      # Test builds to try on a device, from the Actions run page. Debug-signed, so they
+      # install next to nothing else from the Expo releases; real releases come from tags.
+      - name: Upload test APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: bowels-test-apks-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            wear/build/outputs/apk/debug/wear-debug.apk
+          retention-days: 14
