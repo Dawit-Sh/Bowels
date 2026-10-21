@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -106,14 +107,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
-    private var pendingDestination: String? = null
-
     init {
         viewModelScope.launch {
             val data = repository.data.value ?: repository.reload()
             if (!data.hasSettingsRows) repository.saveSettings(AppSettings())
-            pendingDestination?.let { applyDestination(it) }
-            pendingDestination = null
         }
     }
 
@@ -127,7 +124,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Called with the destination a notification carries (see Notifications.openIntent). */
     fun openDestination(destination: String?) {
         destination ?: return
-        if (state.value.loading) pendingDestination = destination else applyDestination(destination)
+        // Wait until the stored data is on screen, whichever finishes first: loading, or this
+        // call. On a cold start from a notification either order happens, and checking
+        // "loading" once used to drop the tap (the weekly report opened Home).
+        viewModelScope.launch {
+            state.first { !it.loading }
+            applyDestination(destination)
+        }
     }
 
     private fun applyDestination(destination: String) {

@@ -66,6 +66,17 @@ class AppBehaviourTest {
     }
 
     @Test
+    fun `a notification tapped on a cold start still opens its screen`() = runBlocking {
+        // The data finished loading before the activity passed the notification on,
+        // which is the order that used to drop the tap.
+        app.repository.saveSettings(com.d_ave.bowels.data.AppSettings(hasOnboarded = true, hasRealData = true))
+        val vm = AppViewModel(app)
+        vm.openDestination(Screen.Weekly.name)
+        waitUntil { vm.state.value.screen == Screen.Weekly }
+        assertEquals(Screen.Weekly, vm.state.value.screen)
+    }
+
+    @Test
     fun `a running session survives the app being closed`() {
         // Started 7 minutes ago, then the app was swiped away (the process is gone, the prefs stay).
         val start = java.time.Instant.now().minusSeconds(7 * 60).truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
