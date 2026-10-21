@@ -25,33 +25,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # Repository secrets: KEYSTORE_BASE64 (the EAS keystore, base64), KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD.
-      # Without the EAS key the APK can't update existing installs, so stop instead of shipping one.
-      - name: Check signing secrets
+      # The 2.x app was signed by EAS, and Android only installs updates signed with the same
+      # key, so the release key is fetched from Expo with EXPO_TOKEN (pinned to its fingerprint).
+      - name: Get the release signing key from Expo
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          missing=""
-          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
-            [ -n "${!name}" ] || missing="$missing $name"
-          done
-          if [ -n "$missing" ]; then
-            echo "::error::Missing repository secrets:$missing. See 'Releases' in the README for how to add the EAS signing key."
-            exit 1
-          fi
-
-      - name: Restore signing key
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bowels-release.jks
-          {
-            echo "storeFile=bowels-release.jks"
-            echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
-            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
-            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
-          } > keystore.properties
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: python3 .github/scripts/eas_keystore.py write
 
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
@@ -61,6 +40,18 @@ jobs:
           ./gradlew assembleRelease
           cp app/build/outputs/apk/release/app-release.apk bowels-${{ github.ref_name }}.apk
           cp wear/build/outputs/apk/release/wear-release.apk bowels-wear-${{ github.ref_name }}.apk
+          rm -f bowels-release.jks keystore.properties
+
+      # Never publish an APK that can't update the installed app.
+      - name: Check both APKs carry the 2.x signing certificate
+        run: |
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          expected=bf81329e7616b0c1074ed627bb2263813e6907c43f14b3ecbb58e70cee6a0004
+          for apk in bowels-${{ github.ref_name }}.apk bowels-wear-${{ github.ref_name }}.apk; do
+            actual=$("$apksigner" verify --print-certs "$apk" | grep -m1 "SHA-256 digest" | awk '{print $NF}')
+            echo "$apk: $actual"
+            [ "$actual" = "$expected" ] || { echo "::error::$apk is not signed with the release key."; exit 1; }
+          done
 
       # The phone APK goes up first and alone: the 2.x app's update check downloads the
       # first .apk it finds, so the watch APK must never come before it.

@@ -142,49 +142,20 @@ CI runs the tests and builds both apps on every push to `main` and `kotlin`.
 
 ## Releases
 
-Pushing a tag like `v3.0.0` builds signed phone and watch APKs and publishes them as a GitHub release. It needs the signing key in four repository secrets, and stops with an error if any is missing.
+Pushing a tag like `v3.0.0` builds the phone and watch APKs, signs them and publishes them as a GitHub release with the notes in `.github/RELEASE_TEMPLATE.md`:
 
-**Use the key the Expo builds were signed with.** Android only installs an update over an existing app when both are signed with the same key. A new key would make 2.x users uninstall first and lose their data.
+```bash
+git tag v3.0.1 && git push origin v3.0.1
+```
 
-1. Download the keystore from EAS (it asks you to pick the Android build profile and **Download existing keystore**; this also prints the alias and passwords):
+Bump `bowels.versionName` and `bowels.versionCode` in `gradle.properties` first.
 
-   ```bash
-   npx eas-cli credentials -p android
-   ```
+**Signing.** Android only installs an update signed with the same key as the installed app, and the 2.x app was signed by Expo (EAS). The release workflow fetches that keystore from Expo at build time with the repo's `EXPO_TOKEN` secret (`.github/scripts/eas_keystore.py`), pinned to the v2.1.2 certificate's fingerprint, and checks both APKs carry that certificate before publishing. The key never leaves Expo and the build machine. Run **Actions › Signing check** to confirm Expo still has it.
 
-2. Add the secrets (from the folder with the downloaded `.jks`):
+If `EXPO_TOKEN` is ever revoked, create a new one at expo.dev (Account settings › Access tokens) and update the secret:
 
-   ```bash
-   gh secret set KEYSTORE_BASE64 -R Dawit-Sh/Bowels --body "$(base64 -w0 your-keystore.jks)"
-   ```
-
-   ```bash
-   gh secret set KEYSTORE_PASSWORD -R Dawit-Sh/Bowels
-   ```
-
-   ```bash
-   gh secret set KEY_ALIAS -R Dawit-Sh/Bowels
-   ```
-
-   ```bash
-   gh secret set KEY_PASSWORD -R Dawit-Sh/Bowels
-   ```
-
-   The last three prompt for the value, so it doesn't end up in your shell history.
-
-3. Tag and push:
-
-   ```bash
-   git tag v3.0.0 && git push origin v3.0.0
-   ```
-
-To build a signed release locally instead, put the same values in `keystore.properties` at the repo root (it's git-ignored):
-
-```properties
-storeFile=your-keystore.jks
-storePassword=...
-keyAlias=...
-keyPassword=...
+```bash
+gh secret set EXPO_TOKEN -R Dawit-Sh/Bowels
 ```
 
 ---
