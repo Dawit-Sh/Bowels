@@ -26,6 +26,23 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       # Repository secrets: KEYSTORE_BASE64 (the EAS keystore, base64), KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD.
+      # Without the EAS key the APK can't update existing installs, so stop instead of shipping one.
+      - name: Check signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          missing=""
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing. See 'Releases' in the README for how to add the EAS signing key."
+            exit 1
+          fi
+
       - name: Restore signing key
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bowels-release.jks
