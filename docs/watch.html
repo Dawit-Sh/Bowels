@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BOWELS | Put It on Your Watch</title>
+  <meta name="description" content="Install the BOWELS Wear OS app on your watch in about five minutes: developer options, wireless debugging, pair, install. Step by step, with commands you can copy.">
+  <meta name="theme-color" content="#f7f4ea">
+  <link rel="icon" type="image/png" href="./assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/site.css">
+  <style>
+    .guide-hero {
+      padding: 4.5rem 0 1.5rem;
+    }
+
+    .guide-hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 2.5rem;
+      align-items: center;
+    }
+
+    .guide-hero h1 {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(2.6rem, 6vw, 4.6rem);
+      line-height: 0.98;
+      letter-spacing: -0.05em;
+      margin: 1.2rem 0 0;
+    }
+
+    .guide-hero h1 .accent {
+      color: var(--accent-deep);
+    }
+
+    .need-list {
+      display: grid;
+      gap: 0.7rem;
+      margin-top: 1.6rem;
+    }
+
+    .need {
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      border-radius: 20px;
+      background: var(--surface);
+      border: 1px solid rgba(18, 18, 18, 0.08);
+      font-weight: 600;
+    }
+
+    .need-icon {
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(53, 87, 70, 0.16), rgba(200, 106, 63, 0.2));
+      font-size: 1.05rem;
+    }
+
+    .hero-watch-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 420px;
+      position: relative;
+    }
+
+    .hero-watch-wrap::before {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(200, 106, 63, 0.22), transparent 66%);
+      animation: float 7s ease-in-out infinite;
+    }
+
+    .hero-watch {
+      position: relative;
+      width: min(78vw, 300px);
+      border-radius: 50%;
+      border: 14px solid #262626;
+      box-shadow: 0 0 0 4px #3a3a3a, 0 40px 60px rgba(18, 18, 18, 0.28);
+      animation: float 6s ease-in-out infinite;
+    }
+
+    /* Progress */
+
+    .progress-card {
+      position: sticky;
+      top: 88px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.9rem 1.2rem;
+      margin: 1.5rem 0 2rem;
+      border-radius: 999px;
+      background: rgba(255, 253, 247, 0.92);
+      border: 1px solid rgba(18, 18, 18, 0.09);
+      box-shadow: 0 14px 30px rgba(16, 16, 16, 0.08);
+      backdrop-filter: blur(14px);
+      font-weight: 700;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(18, 18, 18, 0.08);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+      transition: width 500ms var(--ease);
+    }
+
+    .progress-label {
+      white-space: nowrap;
+      font-size: 0.92rem;
+      color: var(--accent-deep);
+    }
+
+    /* Steps */
+
+    .steps {
+      display: grid;
+      gap: 1.4rem;
+      counter-reset: step;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 230px;
+      gap: 1.6rem;
+      align-items: center;
+      padding: 1.8rem;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid rgba(18, 18, 18, 0.09);
+      box-shadow: var(--shadow);
+      transition: border-color 300ms var(--ease), background 300ms var(--ease);
+    }
+
+    .step.done {
+      border-color: rgba(53, 87, 70, 0.35);
+      background: rgba(234, 241, 233, 0.9);
+    }
+
+    .step-head {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+    }
+
+    .step-number {
+      flex: 0 0 auto;
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(53, 87, 70, 0.16), rgba(200, 106, 63, 0.22));
+      color: var(--accent-deep);
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+
+    .step.done .step-number {
+      background: var(--accent-deep);
+      color: #fff;
+    }
+
+    .step h2 {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(1.3rem, 2.6vw, 1.7rem);
+      letter-spacing: -0.03em;
+      margin: 0;
+    }
+
+    .step p,
+    .step li {
+      line-height: 1.7;
+      color: rgba(18, 18, 18, 0.74);
+    }
+
+    .step p {
+      margin: 0.9rem 0 0;
+    }
+
+    .step ol {
+      margin: 0.9rem 0 0;
+      padding-left: 1.2rem;
+    }
+
+    .path {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+      margin-top: 0.9rem;
+    }
+
+    .path span {
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      background: rgba(53, 87, 70, 0.1);
+      color: var(--accent-deep);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .path span + span::before {
+      content: "\203A";
+      margin-right: 0.45rem;
+      color: var(--accent);
+    }
+
+    .tip {
+      margin-top: 1rem;
+      padding: 0.8rem 1rem;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 16px 16px 0;
+      background: rgba(200, 106, 63, 0.08);
+      font-size: 0.95rem;
+      color: rgba(18, 18, 18, 0.8);
+    }
+
+    .done-toggle {
+      margin-top: 1.2rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.6rem 1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(53, 87, 70, 0.3);
+      background: transparent;
+      color: var(--accent-deep);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 200ms var(--ease), color 200ms var(--ease);
+    }
+
+    .done-toggle:hover {
+      background: rgba(53, 87, 70, 0.08);
+    }
+
+    .step.done .done-toggle {
+      background: var(--accent-deep);
+      color: #fff;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      margin-top: 1.1rem;
+    }
+
+    /* Commands */
+
+    .os-switch {
+      display: inline-flex;
+      gap: 0.3rem;
+      padding: 0.3rem;
+      margin-top: 1rem;
+      border-radius: 999px;
+      background: rgba(18, 18, 18, 0.06);
+    }
+
+    .os-switch button {
+      border: 0;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      background: transparent;
+      font: inherit;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: rgba(18, 18, 18, 0.7);
+      cursor: pointer;
+    }
+
+    .os-switch button[aria-pressed="true"] {
+      background: #fffdf7;
+      color: var(--accent-deep);
+      box-shadow: 0 4px 10px rgba(16, 16, 16, 0.08);
+    }
+
+    .field {
+      display: grid;
+      gap: 0.35rem;
+      margin-top: 1rem;
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .field input {
+      font: inherit;
+      font-family: "Space Grotesk", monospace;
+      font-size: 1.05rem;
+      padding: 0.75rem 1rem;
+      border-radius: 16px;
+      border: 1px solid rgba(18, 18, 18, 0.18);
+      background: #fffdf7;
+      color: var(--text);
+      width: min(100%, 320px);
+    }
+
+    .field input:focus {
+      outline: 3px solid rgba(53, 87, 70, 0.25);
+      border-color: var(--accent-deep);
+    }
+
+    .cmd {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.8rem;
+      padding: 0.75rem 0.75rem 0.75rem 1rem;
+      border-radius: 18px;
+      background: #1b1d0e;
+      color: #eef0dc;
+      font-family: "Space Grotesk", ui-monospace, monospace;
+      font-size: 0.98rem;
+      overflow: hidden;
+    }
+
+    .cmd code {
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding: 0.2rem 0;
+    }
+
+    .cmd code .ph {
+      color: #e7a27f;
+    }
+
+    .copy {
+      flex: 0 0 auto;
+      border: 0;
+      padding: 0.5rem 0.85rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .copy:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    .result {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: rgba(18, 18, 18, 0.62);
+    }
+
+    .result strong {
+      color: var(--accent-deep);
+    }
+
+    /* Watch mockups */
+
+    .mock {
+      justify-self: center;
+      position: relative;
+      width: 210px;
+      height: 210px;
+      border-radius: 50%;
+      background: #0d0d0d;
+      border: 12px solid #2a2a2a;
+      box-shadow: 0 0 0 3px #3c3c3c, 0 26px 40px rgba(18, 18, 18, 0.25);
+      color: #f2f2d9;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      overflow: hidden;
+      font-family: "Work Sans", sans-serif;
+    }
+
+    .mock-inner {
+      width: 76%;
+      display: grid;
+      gap: 0.4rem;
+      justify-items: center;
+    }
+
+    .mock-time {
+      position: absolute;
+      top: 12px;
+      font-size: 0.7rem;
+      opacity: 0.8;
+    }
+
+    .mock-title {
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    .mock-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      padding: 0.42rem 0.6rem;
+      border-radius: 999px;
+      background: #2a2c22;
+      font-size: 0.7rem;
+      text-align: left;
+    }
+
+    .mock-row.tap {
+      background: #3d4a2a;
+      animation: tap 1.6s ease-in-out infinite;
+    }
+
+    .switch {
+      flex: 0 0 auto;
+      width: 26px;
+      height: 15px;
+      border-radius: 999px;
+      background: #8a9a5b;
+      position: relative;
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      right: 2px;
+      top: 2px;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .mock-code {
+      font-family: "Space Grotesk", monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #bdce89;
+    }
+
+    .mock-small {
+      font-size: 0.66rem;
+      opacity: 0.75;
+    }
+
+    .mock-toast {
+      margin-top: 0.3rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      background: #f2f2d9;
+      color: #1b1d0e;
+      font-size: 0.68rem;
+      font-weight: 700;
+      animation: toast 3.2s ease-in-out infinite;
+    }
+
+    .mock-play {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: #8a9a5b;
+      display: grid;
+      place-items: center;
+      font-size: 1.4rem;
+      color: #fff;
+    }
+
+    .mock-terminal {
+      justify-self: center;
+      width: 230px;
+      border-radius: 18px;
+      background: #1b1d0e;
+      color: #eef0dc;
+      padding: 1rem;
+      font-family: "Space Grotesk", monospace;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      box-shadow: 0 26px 40px rgba(18, 18, 18, 0.25);
+    }
+
+    .mock-terminal .ok {
+      color: #bdce89;
+    }
+
+    .mock-terminal .dim {
+      opacity: 0.6;
+    }
+
+    @keyframes tap {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(189, 206, 137, 0.6); }
+      50% { box-shadow: 0 0 0 6px rgba(189, 206, 137, 0); }
+    }
+
+    @keyframes toast {
+      0%, 15% { opacity: 0; transform: translateY(6px); }
+      30%, 80% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; }
+    }
+
+    /* Not released yet */
+
+    .not-yet {
+      display: none;
+      margin: 0 0 1.5rem;
+      padding: 1rem 1.2rem;
+      border-radius: 20px;
+      background: rgba(200, 106, 63, 0.1);
+      border: 1px solid rgba(200, 106, 63, 0.3);
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    html[data-has-watch-apk="false"] .not-yet {
+      display: block;
+    }
+
+    /* Troubleshooting */
+
+    .faq {
+      display: grid;
+      gap: 0.8rem;
+    }
+
+    .faq details {
+      padding: 1.1rem 1.3rem;
+      border-radius: 22px;
+      background: var(--surface);
+      border: 1px solid rgba(18, 18, 18, 0.09);
+    }
+
+    .faq summary {
+      cursor: pointer;
+      font-weight: 700;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .faq summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .faq summary::after {
+      content: "+";
+      color: var(--accent);
+      font-size: 1.3rem;
+      line-height: 1;
+    }
+
+    .faq details[open] summary::after {
+      content: "\2212";
+    }
+
+    .faq p {
+      margin: 0.8rem 0 0;
+      line-height: 1.7;
+      color: rgba(18, 18, 18, 0.74);
+    }
+
+    .finish-card {
+      text-align: center;
+      padding: 2.4rem 1.6rem;
+      margin: 3rem 0 4rem;
+      border-radius: var(--radius);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(200, 106, 63, 0.18), transparent 32%),
+        radial-gradient(circle at 80% 80%, rgba(53, 87, 70, 0.18), transparent 34%),
+        var(--surface-strong);
+      border: 1px solid rgba(18, 18, 18, 0.09);
+      box-shadow: var(--shadow);
+    }
+
+    .finish-card h2 {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      letter-spacing: -0.04em;
+      margin: 0.8rem 0 0;
+    }
+
+    .finish-card p {
+      max-width: 36rem;
+      margin: 0.9rem auto 0;
+      line-height: 1.7;
+      color: rgba(18, 18, 18, 0.74);
+    }
+
+    .finish-card .button-row {
+      justify-content: center;
+    }
+
+    @media (max-width: 980px) {
+      .guide-hero-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-watch-wrap {
+        min-height: 340px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .guide-hero {
+        padding-top: 2.5rem;
+      }
+
+      .step {
+        grid-template-columns: 1fr;
+        padding: 1.3rem;
+      }
+
+      .mock {
+        width: 190px;
+        height: 190px;
+        order: -1;
+      }
+
+      .mock-terminal {
+        order: -1;
+        width: 100%;
+      }
+
+      .progress-card {
+        top: 76px;
+        border-radius: 22px;
+      }
+
+      .cmd {
+        font-size: 0.88rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell">
+      <a class="brand" href="./index.html" aria-label="BOWELS home">
+        <img class="brand-mark" src="./assets/icon.png" alt="BOWELS app icon">
+        <span>BOWELS</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="./index.html#features">Features</a>
+        <a href="./index.html#watch">Watch</a>
+        <a href="#steps">Steps</a>
+        <a href="#help">Help</a>
+      </nav>
+      <div class="header-actions">
+        <a class="button button-secondary" href="./index.html">Home</a>
+        <a class="button button-primary" data-download="watch" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Watch APK</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="guide-hero">
+      <div class="shell guide-hero-grid">
+        <div class="reveal">
+          <div class="eyebrow">
+            <span class="pulse" aria-hidden="true"></span>
+            About five minutes, once
+          </div>
+          <h1>Put BOWELS <span class="accent">on your watch.</span></h1>
+          <p class="hero-copy">
+            Log a session from your wrist while your phone stays in the other room. Your watch reads your heart rate the whole time and hands everything to your phone when they're back together.
+          </p>
+          <div class="need-list" aria-label="What you need">
+            <div class="need"><span class="need-icon" aria-hidden="true">⌚</span>A Wear OS 3+ watch (Galaxy Watch 4 or newer, Pixel Watch, and others)</div>
+            <div class="need"><span class="need-icon" aria-hidden="true">📱</span>BOWELS on your phone, paired with that watch</div>
+            <div class="need"><span class="need-icon" aria-hidden="true">💻</span>A computer on the same Wi-Fi as the watch</div>
+          </div>
+        </div>
+        <div class="hero-watch-wrap reveal">
+          <img class="hero-watch" src="./screenshots/watch-running.png" alt="BOWELS on a watch: a running session at 00:33 with a heart rate of 115 bpm">
+        </div>
+      </div>
+    </section>
+
+    <section class="shell" id="steps">
+      <div class="progress-card" aria-live="polite">
+        <span class="progress-label"><span id="progress-count">0</span> of 6 done</span>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <div class="not-yet">
+        The watch app arrives with BOWELS 3.0, which isn't published yet. You can read through the steps now; the watch app button starts working the moment the release is out.
+      </div>
+
+      <div class="steps">
+        <article class="step reveal" data-step="1">
+          <div>
+            <div class="step-head">
+              <span class="step-number">1</span>
+              <h2>Download two files</h2>
+            </div>
+            <p>The watch app from the latest release, and Google's Platform Tools, the small program your computer uses to talk to the watch. Unzip the tools anywhere, for example your Downloads folder, and put the watch APK in the same folder.</p>
+            <div class="button-row">
+              <a class="button button-primary" data-download="watch" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Watch app <span class="button-meta" data-release="watch-size"></span></a>
+              <a class="button button-secondary os-link" data-os-href-windows="https://dl.google.com/android/repository/platform-tools-latest-windows.zip" data-os-href-mac="https://dl.google.com/android/repository/platform-tools-latest-darwin.zip" data-os-href-linux="https://dl.google.com/android/repository/platform-tools-latest-linux.zip" href="https://developer.android.com/tools/releases/platform-tools" rel="noreferrer">Platform Tools <span class="button-meta os-name"></span></a>
+            </div>
+            <button class="done-toggle" type="button">Mark as done</button>
+          </div>
+          <div class="mock-terminal" aria-hidden="true">
+            <div class="dim">Downloads/platform-tools</div>
+            <div>📄 adb</div>
+            <div>📄 fastboot</div>
+            <div class="ok">⌚ <span data-release="watch-file">bowels-wear.apk</span></div>
+          </div>
+        </article>
+
+        <article class="step reveal" data-step="2">
+          <div>
+            <div class="step-head">
+              <span class="step-number">2</span>
+              <h2>Unlock developer options</h2>
+            </div>
+            <p>On the watch, open Settings and tap <strong>Build number</strong> seven times in a row. A message says you're now a developer.</p>
+            <div class="path" aria-label="Settings path"><span>Settings</span><span>System</span><span>About</span><span>Versions</span><span>Build number</span></div>
+            <div class="tip">On a Samsung Galaxy Watch it's <strong>Settings › About watch › Software information › Software version</strong>, tapped until developer mode turns on.</div>
+            <button class="done-toggle" type="button">Mark as done</button>
+          </div>
+          <div class="mock" aria-hidden="true">
+            <span class="mock-time">10:24</span>
+            <div class="mock-inner">
+              <div class="mock-title">Versions</div>
+              <div class="mock-row"><span>System</span><span class="mock-small">Wear OS 5</span></div>
+              <div class="mock-row tap"><span>Build number</span><span>👆×7</span></div>
+              <div class="mock-toast">You're now a developer!</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step reveal" data-step="3">
+          <div>
+            <div class="step-head">
+              <span class="step-number">3</span>
+              <h2>Turn on wireless debugging</h2>
+            </div>
+            <p>A new <strong>Developer options</strong> menu is now in Settings. Turn on <strong>ADB debugging</strong>, then <strong>Wireless debugging</strong>, and allow it on the Wi-Fi it asks about. Make sure your computer is on that same Wi-Fi.</p>
+            <div class="path" aria-label="Settings path"><span>Settings</span><span>Developer options</span><span>Wireless debugging</span></div>
+            <button class="done-toggle" type="button">Mark as done</button>
+          </div>
+          <div class="mock" aria-hidden="true">
+            <span class="mock-time">10:25</span>
+            <div class="mock-inner">
+              <div class="mock-title">Developer options</div>
+              <div class="mock-row"><span>ADB debugging</span><span class="switch"></span></div>
+              <div class="mock-row tap"><span>Wireless debugging</span><span class="switch"></span></div>
+              <div class="mock-small">Home Wi-Fi</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step reveal" data-step="4">
+          <div>
+            <div class="step-head">
+              <span class="step-number">4</span>
+              <h2>Pair the watch with your computer</h2>
+            </div>
+            <p>In Wireless debugging, tap <strong>Pair new device</strong>. The watch shows a six-digit code and an address. Type the address here and the command below fills itself in.</p>
+            <div class="os-switch" role="group" aria-label="Your computer">
+              <button type="button" data-os="windows">Windows</button>
+              <button type="button" data-os="mac">Mac</button>
+              <button type="button" data-os="linux">Linux</button>
+            </div>
+            <label class="field">Pairing address on the watch
+              <input id="pair-address" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.23:41235">
+            </label>
+            <p>Open a terminal in the platform-tools folder (on Windows: right-click inside the folder › <strong>Open in Terminal</strong>), then run:</p>
+            <div class="cmd"><code data-cmd="pair"></code><button class="copy" type="button">Copy</button></div>
+            <div class="result">Type the code from the watch when asked. You'll see <strong>Successfully paired</strong>.</div>
+            <button class="done-toggle" type="button">Mark as done</button>
+          </div>
+          <div class="mock" aria-hidden="true">
+            <span class="mock-time">10:26</span>
+            <div class="mock-inner">
+              <div class="mock-title">Pair with device</div>
+              <div class="mock-small">Wi-Fi pairing code</div>
+              <div class="mock-code">482 917</div>
+              <div class="mock-small">192.168.1.23:41235</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step reveal" data-step="5">
+          <div>
+            <div class="step-head">
+              <span class="step-number">5</span>
+              <h2>Connect and install</h2>
+            </div>
+            <p>Close the pairing screen. Wireless debugging's main screen shows another address under <strong>IP address &amp; port</strong>. The port is different from the pairing one.</p>
+            <label class="field">Connection address on the watch
+              <input id="connect-address" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.23:38021">
+            </label>
+            <div class="cmd"><code data-cmd="connect"></code><button class="copy" type="button">Copy</button></div>
+            <div class="cmd"><code data-cmd="install"></code><button class="copy" type="button">Copy</button></div>
+            <div class="result">After a few seconds: <strong>Success</strong>. BOWELS is now in your watch's app list.</div>
+            <button class="done-toggle" type="button">Mark as done</button>
+          </div>
+          <div class="mock-terminal" aria-hidden="true">
+            <div><span class="dim">$</span> adb connect …</div>
+            <div class="ok">connected to 192.168.1.23</div>
+            <div><span class="dim">$</span> adb install …</div>
+            <div class="dim">Performing Streamed Install</div>
+            <div class="ok">Success</div>
+          </div>
+        </article>
+
+        <article class="step reveal" data-step="6">
+          <div>
+            <div class="step-head">
+              <span class="step-number">6</span>
+              <h2>Tidy up and start</h2>
+            </div>
+            <p>Turn <strong>ADB debugging</strong> off again; it uses battery. Then open BOWELS on the watch and tap start. The first time, it asks to read your heart rate. Allow it, and that's it.</p>
+            <div class="tip">Sessions you log on the watch show "saved · syncs when your phone is near" and appear in the phone app on their own.</div>
+            <button class="done-toggle" type="button">Mark as done</button>
+          </div>
+          <div class="mock" aria-hidden="true">
+            <span class="mock-time">10:30</span>
+            <div class="mock-inner">
+              <div class="mock-title">Bowels</div>
+              <div class="mock-play">▶</div>
+              <div class="mock-small">Start session</div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="help">
+      <div class="shell">
+        <div class="section-header reveal">
+          <div>
+            <div class="eyebrow">If something's off</div>
+            <h2>Quick fixes</h2>
+          </div>
+          <p>Most hiccups come from the Wi-Fi or a changed port. These cover nearly all of them.</p>
+        </div>
+        <div class="faq reveal">
+          <details>
+            <summary>"Failed to connect" or the pair command hangs</summary>
+            <p>Check that the computer and the watch are on the same Wi-Fi (not a guest network), and that Wireless debugging is still on. The ports change every time Wireless debugging restarts, so read the address on the watch again.</p>
+          </details>
+          <details>
+            <summary>"adb" isn't recognized</summary>
+            <p>The terminal isn't in the platform-tools folder. Open the folder first, then the terminal from inside it. On Windows the commands start with <code>.\adb</code>, on Mac and Linux with <code>./adb</code>; the switch in step 4 sets that for you.</p>
+          </details>
+          <details>
+            <summary>INSTALL_FAILED_UPDATE_INCOMPATIBLE</summary>
+            <p>An older BOWELS build signed differently is already on the watch. Uninstall it from the watch (long-press the app › Uninstall) and run the install command again.</p>
+          </details>
+          <details>
+            <summary>The watch logs sessions but nothing shows up on the phone</summary>
+            <p>The phone and watch apps must come from the same release, so download both from the latest one. Also make sure the watch is paired with that phone in the Wear OS or Galaxy Wearable app. Sessions wait safely on the watch until the two can talk.</p>
+          </details>
+          <details>
+            <summary>No heart rate on the watch</summary>
+            <p>BOWELS asks for heart-rate access the first time you start a session. If you said no, open Settings › Apps › BOWELS › Permissions on the watch and allow it. The timer works either way.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell">
+      <div class="finish-card reveal">
+        <div class="eyebrow">Coming later</div>
+        <h2>One tap, once it's on the Play Store.</h2>
+        <p>When BOWELS is listed on Google Play, the phone app shows <strong>Install on watch</strong> as soon as it finds your watch, and this whole page turns into a single tap.</p>
+        <div class="button-row">
+          <a class="button button-primary" data-download="phone" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Get the phone app <span class="button-meta" data-release="tag"></span></a>
+          <a class="button button-secondary" href="./index.html">Back to BOWELS</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-panel">
+      <div>
+        <strong>BOWELS</strong><br>
+        Zero data collected. Local-first digestive health tracking for Android and Wear OS.
+      </div>
+      <div class="footer-links">
+        <a class="inline-link" href="./index.html">Home</a>
+        <a class="inline-link" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Latest release</a>
+        <a class="inline-link" href="https://github.com/Dawit-Sh/Bowels" target="_blank" rel="noreferrer">Source on GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const store = {
+        get(key) { try { return localStorage.getItem(key); } catch (e) { return null; } },
+        set(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* private mode */ } },
+      };
+
+      // Reveal on scroll, as on the home page.
+      const reveal = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in-view');
+            reveal.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      document.querySelectorAll('.reveal').forEach((el) => reveal.observe(el));
+
+      // Progress checklist, remembered on this device.
+      const steps = [...document.querySelectorAll('.step')];
+      const done = new Set((store.get('bowels-watch-steps') || '').split(',').filter(Boolean));
+      function renderProgress() {
+        steps.forEach((step) => {
+          const isDone = done.has(step.dataset.step);
+          step.classList.toggle('done', isDone);
+          step.querySelector('.done-toggle').textContent = isDone ? '✓ Done' : 'Mark as done';
+        });
+        document.getElementById('progress-count').textContent = done.size;
+        document.getElementById('progress-fill').style.width = (done.size / steps.length * 100) + '%';
+        store.set('bowels-watch-steps', [...done].join(','));
+      }
+      steps.forEach((step) => {
+        step.querySelector('.done-toggle').addEventListener('click', () => {
+          const id = step.dataset.step;
+          if (done.has(id)) done.delete(id); else done.add(id);
+          renderProgress();
+          if (done.has(id)) {
+            const next = steps.find((s) => !done.has(s.dataset.step));
+            if (next && next !== step) next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
+      });
+      renderProgress();
+
+      // Which computer: picks the adb prefix and the Platform Tools download.
+      const guess = /Win/i.test(navigator.platform) ? 'windows' : /Mac/i.test(navigator.platform) ? 'mac' : 'linux';
+      let os = store.get('bowels-watch-os') || guess;
+      const osNames = { windows: 'Windows', mac: 'Mac', linux: 'Linux' };
+
+      const pairInput = document.getElementById('pair-address');
+      const connectInput = document.getElementById('connect-address');
+      pairInput.value = store.get('bowels-watch-pair') || '';
+      connectInput.value = store.get('bowels-watch-connect') || '';
+
+      function apkName() {
+        const el = document.querySelector('[data-release="watch-file"]');
+        return (el && el.textContent.trim()) || 'bowels-wear.apk';
+      }
+
+      function escape(text) {
+        return text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      }
+
+      function renderCommands() {
+        const adb = os === 'windows' ? '.\\adb' : './adb';
+        const pair = pairInput.value.trim();
+        const connect = connectInput.value.trim();
+        const show = (value, placeholder) => value ? escape(value) : '<span class="ph">' + placeholder + '</span>';
+        const cmds = {
+          pair: [adb + ' pair ', show(pair, 'ADDRESS:PORT')],
+          connect: [adb + ' connect ', show(connect, 'ADDRESS:PORT')],
+          install: [adb + ' install ', escape(apkName())],
+        };
+        document.querySelectorAll('[data-cmd]').forEach((code) => {
+          const [start, rest] = cmds[code.dataset.cmd];
+          code.innerHTML = escape(start) + rest;
+        });
+        document.querySelectorAll('.os-switch button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.os === os)));
+        document.querySelectorAll('.os-link').forEach((link) => {
+          link.href = link.getAttribute('data-os-href-' + os);
+          link.querySelector('.os-name').textContent = osNames[os];
+        });
+        store.set('bowels-watch-os', os);
+        store.set('bowels-watch-pair', pair);
+        store.set('bowels-watch-connect', connect);
+      }
+
+      document.querySelectorAll('.os-switch button').forEach((b) => b.addEventListener('click', () => { os = b.dataset.os; renderCommands(); }));
+      [pairInput, connectInput].forEach((input) => input.addEventListener('input', renderCommands));
+
+      // The connection address usually shares the pairing address's IP.
+      pairInput.addEventListener('change', () => {
+        const ip = pairInput.value.trim().split(':')[0];
+        if (ip && !connectInput.value.trim()) {
+          connectInput.value = ip + ':';
+          renderCommands();
+        }
+      });
+
+      document.querySelectorAll('.copy').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const text = button.parentElement.querySelector('code').textContent;
+          try {
+            await navigator.clipboard.writeText(text);
+            button.textContent = 'Copied';
+          } catch (e) {
+            button.textContent = 'Select it';
+          }
+          setTimeout(() => { button.textContent = 'Copy'; }, 1600);
+        });
+      });
+
+      renderCommands();
+      // The real APK name arrives from GitHub a moment later.
+      new MutationObserver(renderCommands).observe(document.querySelector('[data-release="watch-file"]'), { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
+  <script src="./assets/release.js" defer></script>
+</body>
+</html>

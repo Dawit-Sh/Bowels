@@ -62,12 +62,17 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk bowels-${{ github.ref_name }}.apk
           cp wear/build/outputs/apk/release/wear-release.apk bowels-wear-${{ github.ref_name }}.apk
 
+      # The phone APK goes up first and alone: the 2.x app's update check downloads the
+      # first .apk it finds, so the watch APK must never come before it.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           body_path: .github/RELEASE_TEMPLATE.md
-          files: |
-            bowels-${{ github.ref_name }}.apk
-            bowels-wear-${{ github.ref_name }}.apk
+          files: bowels-${{ github.ref_name }}.apk
           draft: false
           prerelease: false
+
+      - name: Attach the watch APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" "bowels-wear-${{ github.ref_name }}.apk"

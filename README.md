@@ -56,6 +56,8 @@ On first launch, **Begin** asks for notifications and for Health Connect's read 
 
 ### Watch (Wear OS 3 or newer)
 
+**Easiest: follow the [step-by-step watch guide](https://dawitsh.dev/Bowels/watch.html)** on the website. You type your watch's address once and it fills in every command for you. The same steps, in short:
+
 Wear OS installs apps only from the Play Store, or from a computer over Wi-Fi with developer mode. Until Bowels is on the Play Store, use the second way. It takes about five minutes, once:
 
 1. **Turn on developer mode on the watch.** Settings → System → About → Versions, then tap **Build number** seven times.
