@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BOWELS | Private Digestive Health Tracking</title>
-  <meta name="description" content="BOWELS is a private, local-first digestive health tracker with zero data collection, offline-first performance, and direct APK downloads.">
+  <title>BOWELS | Private Digestive Health Tracking for Android and Wear OS</title>
+  <meta name="description" content="BOWELS is a private, local-first digestive health tracker for Android and Wear OS. Log from your phone or your watch, see your heart rate and blood pressure around each session, and keep every record on your device.">
   <meta name="theme-color" content="#f7f4ea">
   <link rel="icon" type="image/png" href="./assets/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -661,6 +661,62 @@
       flex: 0 0 auto;
     }
 
+    .screens-board {
+      position: relative;
+      min-height: 580px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.6rem;
+      padding: 2rem 1.5rem;
+      background:
+        radial-gradient(circle at 20% 18%, rgba(200, 106, 63, 0.24), transparent 30%),
+        radial-gradient(circle at 80% 80%, rgba(53, 87, 70, 0.22), transparent 32%),
+        linear-gradient(180deg, rgba(255,255,255,0.88), rgba(219,226,215,0.78));
+      border: 1px solid rgba(18, 18, 18, 0.08);
+      box-shadow: var(--shadow);
+    }
+
+    .screen-phone {
+      width: min(46%, 230px);
+      height: auto;
+      border-radius: 26px;
+      border: 6px solid #1b1d0e;
+      box-shadow: 0 30px 50px rgba(18, 18, 18, 0.2);
+      transform: rotate(-3deg);
+    }
+
+    .screen-watches {
+      display: grid;
+      gap: 1.2rem;
+    }
+
+    .screen-watch {
+      width: min(34vw, 150px);
+      height: auto;
+      border-radius: 50%;
+      border: 8px solid #2b2b2b;
+      box-shadow: 0 22px 36px rgba(18, 18, 18, 0.22);
+    }
+
+    .screen-watch:nth-child(1) {
+      animation: bob 6s ease-in-out infinite;
+    }
+
+    .screen-watch:nth-child(2) {
+      animation: bob 7s ease-in-out infinite reverse;
+    }
+
+    .download-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.85rem;
+      position: relative;
+      z-index: 1;
+    }
+
     .download-card {
       padding: 2rem;
       margin: 3rem 0 4rem;
@@ -842,6 +898,17 @@
         width: 100%;
       }
 
+      .screens-board {
+        min-height: 0;
+        gap: 1rem;
+        padding: 1.5rem 1rem;
+      }
+
+      .screen-watch {
+        width: min(30vw, 120px);
+        border-width: 6px;
+      }
+
       .board-list {
         top: 1rem;
         left: 1rem;
@@ -859,13 +926,14 @@
       </a>
       <nav class="nav-links" aria-label="Primary">
         <a href="#features">Features</a>
+        <a href="#watch">Watch</a>
         <a href="#local-first">Local-first</a>
         <a href="#manifesto">Manifesto</a>
         <a href="#download">Download</a>
       </nav>
       <div class="header-actions">
         <a class="button button-secondary" href="#manifesto">Read manifesto</a>
-        <a class="button button-primary" href="https://github.com/Dawit-Sh/Bowels/releases/tag/v2.1.2" target="_blank" rel="noreferrer">Download APK</a>
+        <a class="button button-primary" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Download APK</a>
       </div>
     </div>
   </header>
@@ -884,16 +952,16 @@
             Stay fully local.
           </h1>
           <p class="hero-copy">
-            BOWELS is a private digestive health tracker built for people who want calm, offline-first logging without accounts, cloud sync, or surveillance. Your records stay on your device, your insights stay in your hands, and your download is one tap away.
+            BOWELS is a private digestive health tracker for Android and Wear OS, built for people who want calm, offline-first logging without accounts, cloud sync, or surveillance. Log from your phone or straight from your watch, see your heart rate and blood pressure from each session, and keep every record on your own device.
           </p>
           <div class="cta-row">
-            <a class="button button-primary" href="https://github.com/Dawit-Sh/Bowels/releases/tag/v2.1.2" target="_blank" rel="noreferrer">Download for Android</a>
+            <a class="button button-primary" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Download for Android</a>
             <a class="button button-secondary" href="#features">Explore features</a>
           </div>
           <div class="micro-note" aria-label="Key points">
             <span>No account required</span>
             <span>Local-first by design</span>
-            <span>GitHub release download</span>
+            <span>Works with Wear OS</span>
           </div>
         </div>
 
@@ -923,8 +991,8 @@
                   <strong>No login</strong>
                 </div>
                 <div class="stat-card">
-                  <span>Release</span>
-                  <strong>v2.1.2</strong>
+                  <span>Watch</span>
+                  <strong>Wear OS</strong>
                 </div>
               </div>
             </div>
@@ -959,16 +1027,16 @@
 
     <section class="manifesto" aria-label="Key principles">
       <div class="ticker">
-        <span>LOCAL-FIRST ENCRYPTION</span>
+        <span>WEAR OS COMPANION</span>
         <span>NO CLOUD SYNC</span>
         <span>ZERO DATA COLLECTED</span>
-        <span>OFFLINE-FIRST PERFORMANCE</span>
-        <span>OPEN SOURCE CORE</span>
-        <span>LOCAL-FIRST ENCRYPTION</span>
+        <span>HEART RATE + BLOOD PRESSURE</span>
+        <span>OPEN SOURCE</span>
+        <span>WEAR OS COMPANION</span>
         <span>NO CLOUD SYNC</span>
         <span>ZERO DATA COLLECTED</span>
-        <span>OFFLINE-FIRST PERFORMANCE</span>
-        <span>OPEN SOURCE CORE</span>
+        <span>HEART RATE + BLOOD PRESSURE</span>
+        <span>OPEN SOURCE</span>
       </div>
     </section>
 
@@ -999,6 +1067,63 @@
             <h3>Smart insights</h3>
             <p>Useful patterns and summaries can be generated from your own data without turning your health history into a product.</p>
           </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon">04</div>
+            <h3>Log from your wrist</h3>
+            <p>Phone in another room? Start and finish a session on your Wear OS watch. It syncs to your phone by itself once they're back together.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon">05</div>
+            <h3>Heart rate and blood pressure</h3>
+            <p>See what your heart and blood pressure were doing during each session, from your watch, from Health Connect, or typed in.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon">06</div>
+            <h3>Share your week</h3>
+            <p>Weekly Wrapped and milestones turn into crisp, story-sized images you can share or save, never stretched screenshots.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="watch">
+      <div class="shell split-grid">
+        <article class="manifesto-card reveal">
+          <div class="eyebrow">Wear OS companion</div>
+          <h2>Your phone can stay on the charger.</h2>
+          <p>
+            Tap start on your watch, finish when you're done, and answer three quick taps. The watch measures your heart rate the whole time and keeps the session until your phone is near again.
+          </p>
+
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-dot">1</div>
+              <div>Live heart rate from the watch's sensor, with average, low and peak saved to the session.</div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-dot">2</div>
+              <div>Blood pressure from your cuff or Samsung Health through Health Connect, matched to the session's time. Read-only.</div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-dot">3</div>
+              <div>No setup screens. Permissions are asked once, right where they're needed, and sync happens on its own.</div>
+            </div>
+          </div>
+
+          <div class="quote">
+            "Straining changes your heart rate. Now you can actually see it."
+          </div>
+        </article>
+
+        <div class="screens-board reveal" aria-label="BOWELS on the phone and the watch">
+          <img class="screen-phone" src="./screenshots/phone-vitals.png" alt="BOWELS phone app showing heart rate and blood pressure after a session" loading="lazy">
+          <div class="screen-watches">
+            <img class="screen-watch" src="./screenshots/watch-running.png" alt="BOWELS on a watch showing a running session with live heart rate" loading="lazy">
+            <img class="screen-watch" src="./screenshots/watch-saved.png" alt="BOWELS on a watch showing a saved session waiting to sync" loading="lazy">
+          </div>
         </div>
       </div>
     </section>
@@ -1015,7 +1140,7 @@
           <div class="bullet-list">
             <div class="bullet-item">
               <div class="bullet-dot">A</div>
-              <div>App data stays on your phone so your routine works even when your internet does not.</div>
+              <div>App data stays on your phone, and the watch talks to it directly, so your routine works even when your internet does not.</div>
             </div>
             <div class="bullet-item">
               <div class="bullet-dot">B</div>
@@ -1036,7 +1161,7 @@
           <div class="board-list" aria-label="BOWELS highlights">
             <div class="board-item">Offline-first</div>
             <div class="board-item">No account</div>
-            <div class="board-item">APK on GitHub</div>
+            <div class="board-item">Phone + watch</div>
           </div>
           <img class="board-icon" src="./assets/icon.png" alt="BOWELS app icon centered on a branded background">
         </div>
@@ -1080,14 +1205,15 @@
     <section class="shell" id="download">
       <article class="download-card reveal">
         <div>
-          <div class="eyebrow">Download the APK</div>
+          <div class="eyebrow">Download</div>
           <h2>Install BOWELS from the official GitHub release.</h2>
           <p>
-            Grab the latest linked Android package directly from the release page. The button below points to the project's published release for version `v2.1.2`.
+            The latest release has two files: the phone app (Android 8.0 or newer) and the watch app (Wear OS 3 or newer). Updating the phone app keeps all your history. The watch app installs from a computer over Wi-Fi for now, and the guide walks you through it in a few minutes.
           </p>
         </div>
-        <div>
-          <a class="button button-primary" href="https://github.com/Dawit-Sh/Bowels/releases/tag/v2.1.2" target="_blank" rel="noreferrer">Open release page</a>
+        <div class="download-actions">
+          <a class="button button-primary" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Latest release</a>
+          <a class="button button-secondary" href="https://github.com/Dawit-Sh/Bowels#watch-wear-os-3-or-newer" target="_blank" rel="noreferrer">Watch install guide</a>
         </div>
       </article>
     </section>
@@ -1097,12 +1223,13 @@
     <div class="shell footer-panel">
       <div>
         <strong>BOWELS</strong><br>
-        Zero data collected. Local-first digestive health tracking.
+        Zero data collected. Local-first digestive health tracking for Android and Wear OS.
       </div>
       <div class="footer-links">
         <a class="inline-link" href="#features">Features</a>
         <a class="inline-link" href="#manifesto">Manifesto</a>
-        <a class="inline-link" href="https://github.com/Dawit-Sh/Bowels/releases/tag/v2.1.2" target="_blank" rel="noreferrer">GitHub release</a>
+        <a class="inline-link" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Latest release</a>
+        <a class="inline-link" href="https://github.com/Dawit-Sh/Bowels" target="_blank" rel="noreferrer">Source on GitHub</a>
       </div>
     </div>
   </footer>
