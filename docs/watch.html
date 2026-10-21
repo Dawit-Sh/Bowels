@@ -610,6 +610,46 @@
       justify-content: center;
     }
 
+    .wrist-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.4rem;
+      margin: 2rem auto 0.6rem;
+      max-width: 820px;
+    }
+
+    .wrist-gallery figure {
+      margin: 0;
+      display: grid;
+      justify-items: center;
+      gap: 0.9rem;
+    }
+
+    .wrist-gallery img {
+      width: min(100%, 190px);
+      border-radius: 50%;
+      border: 10px solid #262626;
+      box-shadow: 0 0 0 3px #3a3a3a, 0 24px 36px rgba(18, 18, 18, 0.22);
+    }
+
+    .wrist-gallery figure:nth-child(2) img {
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .wrist-gallery figcaption {
+      display: grid;
+      gap: 0.2rem;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      color: rgba(18, 18, 18, 0.68);
+    }
+
+    .wrist-gallery figcaption strong {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+
     @media (max-width: 980px) {
       .guide-hero-grid {
         grid-template-columns: 1fr;
@@ -648,6 +688,11 @@
 
       .cmd {
         font-size: 0.88rem;
+      }
+
+      .wrist-gallery {
+        grid-template-columns: 1fr;
+        gap: 1.6rem;
       }
     }
   </style>
@@ -884,9 +929,23 @@
 
     <section class="shell">
       <div class="finish-card reveal">
-        <div class="eyebrow">Coming later</div>
-        <h2>One tap, once it's on the Play Store.</h2>
-        <p>When BOWELS is listed on Google Play, the phone app shows <strong>Install on watch</strong> as soon as it finds your watch, and this whole page turns into a single tap.</p>
+        <div class="eyebrow">You're set</div>
+        <h2>This is what's on your wrist now.</h2>
+        <p>Start a session, watch your heart rate as you go, and answer a few taps at the end. Your phone gets everything the next time they're together.</p>
+        <div class="wrist-gallery">
+          <figure>
+            <img src="./screenshots/watch-running.png" alt="A running session on the watch: 00:33 and 115 bpm" loading="lazy">
+            <figcaption><strong>Live heart rate</strong>Timer and pulse, even with the screen off</figcaption>
+          </figure>
+          <figure>
+            <img src="./screenshots/watch-questions.png" alt="The watch asking how it looked, with Hard and Lumpy options" loading="lazy">
+            <figcaption><strong>One tap per question</strong>Type, look, pain, blood. Done in seconds</figcaption>
+          </figure>
+          <figure>
+            <img src="./screenshots/watch-saved.png" alt="The watch showing Saved, average 97 bpm, syncs when your phone is near" loading="lazy">
+            <figcaption><strong>Syncs on its own</strong>Waits on the watch until your phone is near</figcaption>
+          </figure>
+        </div>
         <div class="button-row">
           <a class="button button-primary" data-download="phone" href="https://github.com/Dawit-Sh/Bowels/releases/latest" target="_blank" rel="noreferrer">Get the phone app <span class="button-meta" data-release="tag"></span></a>
           <a class="button button-secondary" href="./index.html">Back to BOWELS</a>
