@@ -40,6 +40,8 @@ data class AnalyticsSummary(
     val totalVisits: Int,
     val totalDurationSeconds: Long,
     val predictedNextTimeLabel: String,
+    val predictionNote: String,
+    val prediction: Prediction?,
     val milestoneProgressDays: Int,
     val vitals: VitalsSummary,
 )
@@ -67,23 +69,63 @@ object Analytics {
 
     private fun SessionWithAnswers.day() = session.startTime.localDate(zone)
 
-    fun build(sessions: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>): AnalyticsSummary {
+    fun build(all: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>): AnalyticsSummary {
+        val sessions = Rhythm.distinct(all)
         val days = lastDays(14)
         val byDay = sessions.groupingBy { it.day() }.eachCount()
         val totalDuration = sessions.sumOf { it.session.durationSeconds }
-        val fiberHeavyDays = dailyHealth.count { it.fiber.lowercase() in setOf("high", "great") }
-        val smoothDays = sessions.count { it.stoolType in setOf(3, 4) }
+        val now = ZonedDateTime.now(zone)
+        val prediction = predictCached(sessions, now)
+        val bowelCount = sessions.count { it.session.kind == SessionKind.Bowel }
         return AnalyticsSummary(
             visitsPerDay = days.map { DayCount(it, byDay[it] ?: 0) },
             averageDurationSeconds = if (sessions.isEmpty()) 0 else (totalDuration.toDouble() / sessions.size).roundToInt().toLong(),
             stoolDistribution = (1..7).map { type -> type to sessions.count { it.stoolType == type } },
-            fiberCorrelationLabel = if (fiberHeavyDays > 0 && smoothDays > 0) "Higher-fiber days trend toward Type 3-4 results." else "More logs are needed for a reliable fiber correlation.",
+            fiberCorrelationLabel = fiberLabel(sessions, dailyHealth),
             totalVisits = sessions.size,
             totalDurationSeconds = totalDuration,
-            predictedNextTimeLabel = predictNext(sessions),
+            predictedNextTimeLabel = when {
+                prediction != null -> windowLabel(prediction, now)
+                bowelCount < 2 -> "Need more data"
+                else -> "Building pattern..."
+            },
+            predictionNote = prediction?.let { predictionNote(it) } ?: "Log a few visits and this learns your usual times.",
+            prediction = prediction,
             milestoneProgressDays = sessions.map { it.day() }.toSet().size,
             vitals = vitalsSummary(sessions.filter { it.day() >= days.first() }),
         )
+    }
+
+    // The screen state is rebuilt often (every screen change); the sessions list only changes when data does.
+    private var cached: Triple<List<SessionWithAnswers>, Long, Prediction?>? = null
+
+    private fun predictCached(sessions: List<SessionWithAnswers>, now: ZonedDateTime): Prediction? {
+        val bucket = now.toEpochSecond() / 300
+        cached?.let { (list, at, p) -> if (list == sessions && at == bucket) return p }
+        val p = Rhythm.predict(sessions.filter { it.session.kind == SessionKind.Bowel }.asReversed(), now)
+        cached = Triple(sessions, bucket, p)
+        return p
+    }
+
+    private fun clock(t: ZonedDateTime) = t.format(DateTimeFormatter.ofPattern("h:mm", Locale.getDefault()))
+    private fun amPm(t: ZonedDateTime) = t.format(DateTimeFormatter.ofPattern("a", Locale.getDefault()))
+
+    /** "Tomorrow 8:10–9:40 AM", "Today 6:50 PM–8:10 PM". */
+    fun windowLabel(p: Prediction, now: ZonedDateTime): String {
+        val day = when (p.at.toLocalDate()) {
+            now.toLocalDate() -> "Today"
+            now.toLocalDate().plusDays(1) -> "Tomorrow"
+            else -> p.at.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+        }
+        val range = if (amPm(p.from) == amPm(p.to)) "${clock(p.from)}–${clock(p.to)} ${amPm(p.to)}"
+        else "${clock(p.from)} ${amPm(p.from)}–${clock(p.to)} ${amPm(p.to)}"
+        return "$day $range"
+    }
+
+    private fun predictionNote(p: Prediction): String {
+        val around = "Most likely around ${clock(p.at)} ${amPm(p.at)}."
+        return if (p.checked >= 5) "$around Checked against your own history, this window held the real time on ${p.hits} of your last ${p.checked} visits."
+        else "$around It learns your rhythm from every visit you log, newer ones counting more."
     }
 
     fun vitalsSummary(sessions: List<SessionWithAnswers>): VitalsSummary {
@@ -101,66 +143,8 @@ object Analytics {
         )
     }
 
-    private fun predictNext(sessions: List<SessionWithAnswers>): String {
-        val bowelTimes = sessions.filter { it.session.kind == SessionKind.Bowel }
-            .map { it.session.startTime.atZone(zone) }
-            .sortedDescending()
-        if (bowelTimes.size < 2) return "Need more data"
-        if (bowelTimes.size < 3) return "Building pattern..."
-
-        val recent = bowelTimes.take(21)
-        val intervals = recent.zipWithNext { a, b -> Duration.between(b, a).toMinutes() / 60.0 }
-        val avgInterval = if (intervals.isEmpty()) 24.0 else intervals.average()
-        val weightedInterval = if (intervals.isEmpty()) 24.0 else
-            intervals.withIndex().sumOf { (i, v) -> v * 0.85.pow(i) } / intervals.indices.sumOf { 0.85.pow(it) }
-
-        val minutesOfDay = { d: ZonedDateTime -> d.hour * 60 + d.minute }
-        val byWeekday = recent.groupBy { it.dayOfWeek }.mapValues { (_, v) -> v.map(minutesOfDay) }
-
-        fun bucket(hour: Int) = when (hour) {
-            in 5..11 -> "morning"
-            in 12..16 -> "afternoon"
-            in 17..21 -> "evening"
-            else -> "night"
-        }
-
-        val variance = if (intervals.size > 1) intervals.sumOf { (it - avgInterval).pow(2) } / intervals.size else 0.0
-        val consistency = if (avgInterval > 0) max(0.0, 1 - sqrt(variance) / avgInterval) else 0.0
-
-        val stepMinutes = max(60L, (weightedInterval * 60).roundToInt().toLong())
-        var predicted = recent.first().plusMinutes(stepMinutes)
-        fun at(minutes: Double) = predicted.withHour((minutes / 60).toInt()).withMinute((minutes % 60).roundToInt().coerceAtMost(59))
-
-        // A steady time on that weekday wins; otherwise your usual time of day. (The old app kept
-        // the raw "last + gap" time when a weekday was irregular, which gave answers like 12:22 AM.)
-        val dayTimes = byWeekday[predicted.dayOfWeek]
-        val steadyDay = dayTimes?.takeIf { it.size >= 2 }?.let { times ->
-            val mean = times.average()
-            val dayVariance = times.sumOf { (it - mean).pow(2) } / times.size
-            mean.takeIf { max(0.0, 1 - sqrt(dayVariance) / 60) > 0.7 }
-        }
-        if (steadyDay != null) {
-            predicted = at(steadyDay)
-        } else {
-            val preferred = recent.groupingBy { bucket(it.hour) }.eachCount().maxByOrNull { it.value }?.key ?: "morning"
-            val preferredTimes = recent.filter { bucket(it.hour) == preferred }.map(minutesOfDay)
-            if (preferredTimes.isNotEmpty()) predicted = at(preferredTimes.average())
-        }
-        // Step whole days, so the time of day stays put.
-        val now = ZonedDateTime.now(zone)
-        while (predicted.isBefore(now)) predicted = predicted.plusDays(1)
-
-        val day = predicted.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-        val time = predicted.format(DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()))
-        val confidence = when {
-            consistency > 0.8 -> "🎯"
-            consistency > 0.6 -> "📊"
-            else -> "🔮"
-        }
-        return "$confidence $day $time"
-    }
-
-    fun weeklyWrapped(sessions: List<SessionWithAnswers>): WeeklyWrappedSummary {
+    fun weeklyWrapped(all: List<SessionWithAnswers>): WeeklyWrappedSummary {
+        val sessions = Rhythm.distinct(all)
         val days = lastDays(7)
         val window = days.toSet()
         val weekly = sessions.filter { it.session.kind == SessionKind.Bowel && it.day() in window }
@@ -183,21 +167,30 @@ object Analytics {
         )
     }
 
-    fun insights(sessions: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>): List<InsightItem> {
+    /**
+     * What stands out in your logs. Safety notes (blood, pain, a three-day gap) use fixed lines;
+     * everything else is measured against your own usual, so a pattern that's normal for you
+     * doesn't nag, and a link to a habit is only shown when your own history backs it up.
+     */
+    fun insights(all: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>, now: Instant = Instant.now()): List<InsightItem> {
         val items = mutableListOf<InsightItem>()
-        val bowel = sessions.filter { it.session.kind == SessionKind.Bowel }
+        val bowel = Rhythm.distinct(all).filter { it.session.kind == SessionKind.Bowel }
         val latest = bowel.firstOrNull()
 
-        if (latest == null || Duration.between(latest.session.endTime, Instant.now()).toHours() >= 72) {
+        val hoursSince = latest?.let { Duration.between(it.session.endTime, now).toMinutes() / 60.0 }
+        if (hoursSince == null || hoursSince >= 72) {
             items += InsightItem("no-bowel", "No bowel log in 3 days", "Your recent history suggests a gap in bowel activity. Consider hydration, movement, and fiber intake.", Severity.High)
+        } else {
+            val gaps = bowel.filter { Duration.between(it.session.startTime, now).toDays() <= 60 }
+                .zipWithNext { newer, older -> Duration.between(older.session.startTime, newer.session.startTime).toMinutes() / 60.0 }
+            if (gaps.size >= 10) {
+                val usual = gaps.sorted()[(gaps.size * 0.9).toInt().coerceAtMost(gaps.size - 1)]
+                if (hoursSince >= max(30.0, usual * 1.2)) {
+                    items += InsightItem("longer-gap", "Longer gap than usual", "It's been ${hoursSince.roundToInt()} hours since your last visit, and your gaps are usually under ${usual.roundToInt()} hours. Water, a walk and a fiber-rich meal can help things along.", Severity.Info)
+                }
+            }
         }
-        val lastStool = latest?.stoolType ?: 0
-        if (lastStool in 1..2) items += InsightItem("low-fiber", "Pattern suggests low fiber", "Recent bowel sessions trend toward Type 1-2, which may align with constipation or low fiber intake.", Severity.Warning)
-        if (lastStool in 6..7) items += InsightItem("hydration-issue", "Hydration issue flagged", "Type 6-7 patterns can be associated with hydration imbalance or irritation.", Severity.Warning)
 
-        if (sessions.count { it.session.durationSeconds >= 12 * 60 } >= 2) {
-            items += InsightItem("long-session", "Long sessions recurring", "Multiple sessions exceeded 12 minutes. Consider whether straining, urgency, or discomfort is increasing.", Severity.Info)
-        }
         if (bowel.take(5).count { it.answers["pain"] in setOf("moderate", "severe") } >= 2) {
             items += InsightItem("pain-pattern", "Pain pattern detected", "Multiple recent sessions with moderate to severe pain. Consider consulting a healthcare provider if this persists.", Severity.High)
         }
@@ -205,39 +198,191 @@ object Analytics {
         if (recent7.any { it.answers["blood"] == "true" }) {
             items += InsightItem("blood-detected", "Blood detected in recent sessions", "Blood in stool should be evaluated by a healthcare provider, especially if recurring.", Severity.High)
         }
-        if (recent7.count { (it.answers["urgency"]?.toIntOrNull() ?: 0) >= 4 } >= 3) {
-            items += InsightItem("high-urgency", "Frequent high urgency", "Multiple sessions with high urgency (4-5). This may indicate digestive sensitivity or stress.", Severity.Warning)
+
+        items += consistencyInsights(bowel)
+        items += durationInsights(bowel)
+
+        val urgent = recent7.count { (it.answers["urgency"]?.toIntOrNull() ?: 0) >= 4 }
+        if (urgent >= 3) {
+            items += InsightItem("high-urgency", "Frequent high urgency", "$urgent of your last ${recent7.size} visits had high urgency (4-5). This may point to digestive sensitivity or stress.", Severity.Warning)
         }
         val tags = recent7.flatMap { it.answers["adaptive_tags"].orEmpty().split(",").filter(String::isNotEmpty) }.groupingBy { it }.eachCount()
-        if ((tags["straining"] ?: 0) >= 3) items += InsightItem("straining-pattern", "Frequent straining detected", "Straining during bowel movements may indicate low fiber, dehydration, or other digestive issues.", Severity.Warning)
-        if ((tags["bloating"] ?: 0) >= 3) items += InsightItem("bloating-pattern", "Recurring bloating", "Frequent bloating may be related to diet, food sensitivities, or eating habits. Consider tracking trigger foods.", Severity.Info)
+        tags["straining"]?.takeIf { it >= 3 }?.let {
+            items += InsightItem("straining-pattern", "Frequent straining", "You strained on $it of your last ${recent7.size} visits. Low fiber, too little water or rushing are the usual reasons.", Severity.Warning)
+        }
+        tags["bloating"]?.takeIf { it >= 3 }?.let {
+            items += InsightItem("bloating-pattern", "Recurring bloating", "Bloating came up on $it of your last ${recent7.size} visits. Diet, food sensitivities or eating fast can cause it, and noting trigger foods helps.", Severity.Info)
+        }
 
         items += vitalsInsights(bowel)
+        items += habitEffects(bowel, dailyHealth, now).take(2).map { it.insight }
 
-        if (dailyHealth.isNotEmpty()) {
-            val health = dailyHealth.take(7)
-            val stool7 = recent7.mapNotNull { it.stoolType }
-            if (health.count { it.caffeine in setOf("High", "Very High", "Excessive") } >= 3 && stool7.count { it in 6..7 } >= 2) {
-                items += InsightItem("caffeine-correlation", "Caffeine may be affecting digestion", "High caffeine intake correlates with looser stools. Consider reducing intake to see if symptoms improve.", Severity.Info)
-            }
-            if (health.count { it.stress in setOf("High", "Very High", "Extreme") } >= 3 && recent7.count { (it.answers["urgency"]?.toIntOrNull() ?: 0) >= 4 } >= 2) {
-                items += InsightItem("stress-correlation", "Stress may be impacting digestion", "High stress levels correlate with increased urgency. Stress management techniques may help.", Severity.Info)
-            }
-            if (health.count { it.sleep in setOf("Poor", "Very Poor", "None") } >= 4) {
-                items += InsightItem("sleep-pattern", "Poor sleep pattern detected", "Consistent poor sleep can affect digestive health. Aim for 7-9 hours of quality sleep.", Severity.Warning)
-            }
-            if (health.count { it.alcohol !in setOf("None", "") } >= 2 && stool7.count { it <= 2 || it >= 6 } >= 2) {
-                items += InsightItem("alcohol-correlation", "Alcohol may be affecting regularity", "Alcohol consumption correlates with irregular stool patterns. Consider moderating intake.", Severity.Info)
-            }
-            if (health.count { it.mood in setOf("Sad", "Anxious", "Stressed", "Angry") } >= 4) {
-                items += InsightItem("mood-pattern", "Mood affecting wellness", "Negative mood patterns can impact digestive health. Consider stress management or speaking with a professional.", Severity.Info)
-            }
+        val health = dailyHealth.take(7)
+        if (health.count { it.sleep.lowercase() in setOf("poor", "very poor", "none") } >= 4) {
+            items += InsightItem("sleep-pattern", "Poor sleep pattern detected", "Consistent poor sleep can affect digestive health. Aim for 7-9 hours of quality sleep.", Severity.Warning)
+        }
+        if (health.count { it.mood.lowercase() in setOf("sad", "anxious", "stressed", "angry") } >= 4) {
+            items += InsightItem("mood-pattern", "Mood affecting wellness", "Negative mood patterns can impact digestive health. Consider stress management or speaking with a professional.", Severity.Info)
         }
 
         if (items.isEmpty()) {
-            items += InsightItem("steady", "Rhythm looks steady", "Recent logs do not show a strong warning pattern. Keep your routine consistent.", Severity.Info)
+            items += InsightItem("steady", "Rhythm looks steady", "Nothing in your recent logs stands out from your usual. Keep your routine going.", Severity.Info)
+        }
+        // Most important first: the home screen shows the top one.
+        return items.sortedByDescending { it.severity.ordinal }
+    }
+
+    private fun share(count: Int, total: Int) = "${(100.0 * count / total).roundToInt()}%"
+
+    private fun zScore(hits: Int, n: Int, baseHits: Int, baseN: Int): Double {
+        if (n == 0 || baseN == 0) return 0.0
+        val pooled = (hits + baseHits).toDouble() / (n + baseN)
+        val se = sqrt(pooled * (1 - pooled) * (1.0 / n + 1.0 / baseN))
+        return if (se > 0) (hits.toDouble() / n - baseHits.toDouble() / baseN) / se else 0.0
+    }
+
+    /** True when [hits] of [n] is clearly more than [baseHits] of [baseN]: 20 points or more, and unlikely to be chance. */
+    private fun clearlyMore(hits: Int, n: Int, baseHits: Int, baseN: Int): Boolean =
+        n > 0 && baseN > 0 && hits.toDouble() / n - baseHits.toDouble() / baseN >= 0.2 && zScore(hits, n, baseHits, baseN) >= 1.65
+
+    private enum class Consistency(val label: String, val types: IntRange, val word: String) {
+        Loose("Type 6-7", 6..7, "Looser"), Hard("Type 1-2", 1..2, "Harder"), Steady("Type 3-4", 3..4, "Steadier")
+    }
+
+    /** Your last 10 visits against the 40 before them. Until there's a baseline, the last three. */
+    private fun consistencyInsights(bowel: List<SessionWithAnswers>): List<InsightItem> {
+        val typed = bowel.mapNotNull { it.stoolType }
+        val recent = typed.take(10)
+        val before = typed.drop(10).take(40)
+        if (recent.size < 6 || before.size < 10) {
+            val last3 = typed.take(3)
+            return listOfNotNull(
+                InsightItem("low-fiber", "Pattern suggests low fiber", "Your recent visits lean toward Type 1-2, which can go with constipation or low fiber intake.", Severity.Warning)
+                    .takeIf { last3.count { it in 1..2 } >= 2 },
+                InsightItem("hydration-issue", "Looser stools lately", "Your recent visits lean toward Type 6-7, which can go with a hydration imbalance or an irritated gut.", Severity.Warning)
+                    .takeIf { last3.count { it >= 6 } >= 2 },
+            )
+        }
+        return Consistency.entries.mapNotNull { c ->
+            val hits = recent.count { it in c.types }
+            val base = before.count { it in c.types }
+            if (!clearlyMore(hits, recent.size, base, before.size)) return@mapNotNull null
+            val compare = "$hits of your last ${recent.size} visits were ${c.label}, against ${share(base, before.size)} before."
+            when (c) {
+                Consistency.Loose -> InsightItem("looser-than-usual", "Looser than usual", "$compare Fluids, stress, new foods or a stomach bug are common reasons.", Severity.Warning)
+                Consistency.Hard -> InsightItem("harder-than-usual", "Harder than usual", "$compare Water, fiber and moving more usually help.", Severity.Warning)
+                Consistency.Steady -> InsightItem("steadier", "Getting steadier", "$compare Whatever you've changed seems to be working.", Severity.Info)
+            }
+        }
+    }
+
+    private fun median(values: List<Double>) = values.sorted().let { (it[(it.size - 1) / 2] + it[it.size / 2]) / 2 }
+
+    /** Session length against your own usual, plus a gentle note when sittings run long. */
+    private fun durationInsights(bowel: List<SessionWithAnswers>): List<InsightItem> {
+        val minutes = bowel.map { it.session.durationSeconds / 60.0 }
+        val recent = minutes.take(7)
+        if (recent.size < 3) return emptyList()
+        val lately = median(recent)
+        val before = minutes.drop(7).take(30)
+        val items = mutableListOf<InsightItem>()
+        if (before.size >= 10) {
+            val usual = median(before)
+            if (lately >= usual * 1.25 && lately - usual >= 2) {
+                items += InsightItem("longer-than-usual", "Sessions running longer", "Your recent sessions take about ${lately.roundToInt()} minutes, against ${usual.roundToInt()} before. If it's straining or waiting, water, fiber and not forcing it can help.", Severity.Info)
+            }
+        }
+        if (lately >= 15) {
+            items += InsightItem("long-session", "Long sittings", "Your recent sessions take about ${lately.roundToInt()} minutes. Sitting much past 10 to 15 minutes puts pressure on the veins down there, so it can help to get up and come back when you feel the urge.", Severity.Info)
         }
         return items
+    }
+
+    private class Effect(val insight: InsightItem, val strength: Double)
+
+    /** [good]: a habit that can make things steadier. "Steadier after poor sleep" is almost always chance. */
+    private class Habit(val field: String, val levels: Set<String>, val phrase: String, val good: Boolean = false)
+
+    private val habits = listOf(
+        Habit("stress", setOf("high"), "high-stress days"),
+        Habit("sleep", setOf("poor"), "nights of poor sleep"),
+        Habit("water", setOf("low"), "low-water days"),
+        Habit("fiber", setOf("low"), "low-fiber days"),
+        Habit("fiber", setOf("high"), "high-fiber days", good = true),
+        Habit("caffeine", setOf("medium", "high"), "days with more caffeine"),
+        Habit("alcohol", setOf("moderate", "heavy"), "drinking days"),
+        Habit("meals", setOf("heavy"), "heavy-meal days"),
+        Habit("exercise", setOf("light", "active"), "days you moved", good = true),
+    )
+
+    /**
+     * Links between your daily check-ins and your stools: visits on a habit's day or the day after,
+     * against all your other visits. Shown only with enough of both, a clear difference, and the
+     * habit seen in the last 30 days (an old link that no longer happens isn't news).
+     */
+    private fun habitEffects(bowel: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>, now: Instant = Instant.now()): List<Effect> {
+        val visits = bowel.filter { it.stoolType != null && Duration.between(it.session.startTime, now).toDays() <= 120 }
+        if (visits.size < 15) return emptyList()
+        val effects = mutableListOf<Effect>()
+
+        val monthAgo = now.atZone(zone).toLocalDate().minusDays(30)
+        // Many habits are checked at once, so a link needs more than the usual evidence.
+        fun compare(id: String, title: (Consistency) -> String, body: (Consistency, Int, Int, String) -> String, days: Int, lately: Boolean, good: Boolean, exposed: (SessionWithAnswers) -> Boolean) {
+            val (inside, outside) = visits.partition(exposed)
+            if (!lately || days < 3 || inside.size < 5 || outside.size < 10) return
+            val (c, hits) = Consistency.entries
+                .filter { good || it != Consistency.Steady }
+                .map { c -> c to inside.count { it.stoolType!! in c.types } }
+                .filter { (c, hits) ->
+                    val base = outside.count { it.stoolType!! in c.types }
+                    clearlyMore(hits, inside.size, base, outside.size) && zScore(hits, inside.size, base, outside.size) >= 2.0
+                }
+                .maxByOrNull { (c, hits) -> zScore(hits, inside.size, outside.count { it.stoolType!! in c.types }, outside.size) }
+                ?: return
+            val base = outside.count { it.stoolType!! in c.types }
+            effects += Effect(
+                InsightItem("$id-${c.name.lowercase()}", title(c), body(c, hits, inside.size, share(base, outside.size)), Severity.Info),
+                zScore(hits, inside.size, base, outside.size),
+            )
+        }
+
+        for (h in habits) {
+            val habitDays = dailyHealth.filter { it.toInput()[h.field].lowercase() in h.levels }.map { it.day }.toSet()
+            compare(
+                "effect-${h.field}-${h.levels.first()}",
+                { c -> "${c.word} after ${h.phrase}" },
+                { c, hits, n, other -> "On ${h.phrase} and the day after, $hits of $n visits were ${c.label}, against $other otherwise." },
+                habitDays.size,
+                habitDays.any { day -> runCatching { LocalDate.parse(day) >= monthAgo }.getOrDefault(false) },
+                h.good,
+            ) { v -> v.day().toString() in habitDays || v.day().minusDays(1).toString() in habitDays }
+        }
+
+        // Going again soon after a visit, against the rest.
+        val quick = bowel.zipWithNext { newer, older -> newer.id to (Duration.between(older.session.startTime, newer.session.startTime).toHours() < 12) }
+            .filter { it.second }.map { it.first }.toSet()
+        compare(
+            "effect-quick-return",
+            { c -> "${c.word} when you go again soon" },
+            { c, hits, n, other -> "When you went again within 12 hours, $hits of $n of those visits were ${c.label}, against $other for the rest." },
+            visits.count { it.id in quick },
+            visits.any { it.id in quick && it.day() >= monthAgo },
+            good = false,
+        ) { it.id in quick }
+        return effects.sortedByDescending { it.strength }
+    }
+
+    /** The Fiber Effect card: a real comparison from your check-ins, or what's missing for one. */
+    private fun fiberLabel(sessions: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>): String {
+        val bowel = sessions.filter { it.session.kind == SessionKind.Bowel }
+        habitEffects(bowel, dailyHealth).firstOrNull { it.insight.id.startsWith("effect-fiber") }?.let { return it.insight.body }
+        val fiber = dailyHealth.take(120).map { it.fiber.lowercase() }
+        if (fiber.size < 7) return "Fill in the daily health check for a week or two and this shows what fiber does for your stools."
+        val (common, count) = fiber.groupingBy { it }.eachCount().maxBy { it.value }
+        if (count >= fiber.size * 0.85) {
+            return "You've logged ${common.replaceFirstChar { it.uppercase() }} fiber on $count of ${fiber.size} days, so there's nothing to compare yet. Log the days you eat more or less fiber and this will show what it does for you."
+        }
+        return "No clear link yet between fiber and your stools. It needs a few more days of higher and lower fiber to tell."
     }
 
     /** Calm, observational notes from heart rate and blood pressure. Never a diagnosis. */

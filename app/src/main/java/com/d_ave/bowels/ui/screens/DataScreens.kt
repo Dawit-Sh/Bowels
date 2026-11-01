@@ -148,6 +148,12 @@ fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>) {
         }
 
         BCard(Modifier.fillMaxWidth()) {
+            BText("Your Rhythm", p.onSurface, 22.sp, FontWeight.Bold)
+            BText("Next likely: ${analytics.predictedNextTimeLabel}", p.primary, 16.sp, FontWeight.Bold)
+            BText(analytics.predictionNote, p.onSurfaceVariant, lineHeight = 20.sp)
+        }
+
+        BCard(Modifier.fillMaxWidth()) {
             BText("Fiber Effect", p.onSurface, 22.sp, FontWeight.Bold)
             BText(analytics.fiberCorrelationLabel, p.onSurfaceVariant, lineHeight = 20.sp)
         }

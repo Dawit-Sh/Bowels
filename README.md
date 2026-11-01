@@ -33,7 +33,8 @@ Log sessions in one tap, from your phone or your watch, see your heart rate and 
 | **Wear OS watch** | Start and finish a session from your wrist when your phone is in another room. The watch measures your heart rate during the session and syncs to the phone by itself, even if the phone was out of range at the time |
 | **Heart rate and blood pressure** | Read from Health Connect (Samsung Health, Fitbit, Pixel Watch, Omron and other cuffs write there) for the time of each session, or typed in. Read-only |
 | **Daily health check** | Water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, mood |
-| **Insights** | Gaps, pain, blood, urgency, hydration, stress and sleep patterns, and how straining affects your heart rate |
+| **Next visit window** | Learns your usual times on the phone and shows when your next visit is likely, with how often that window held up for you |
+| **Insights** | Looser, harder or steadier than your own usual, longer sessions or gaps than usual, links to your habits when your logs back them up, pain, blood, and how straining affects your heart rate |
 | **Weekly Wrapped** | Your week as a story-sized image to share or save |
 | **Milestones** | Celebrate logged-day streaks, and share them |
 | **Backups** | Export and import a JSON archive (2.x backups import too) |
@@ -97,7 +98,7 @@ Once Bowels is on the Play Store (an internal testing track is enough), the phon
 .
 |-- app/        Phone app (Jetpack Compose)
 |   |-- data/       SQLite, repository, backups, local prefs
-|   |-- domain/     Analytics, insights, content, demo data
+|   |-- domain/     Rhythm (next-visit model), analytics, insights, content, demo data
 |   |-- health/     Health Connect reads
 |   |-- notify/     Reminders, weekly report, session and milestone notifications
 |   |-- share/      1080x1920 share images
@@ -128,7 +129,11 @@ Requirements: JDK 17 and the Android SDK (platform 35).
 ./gradlew :app:testDebugUnitTest
 ```
 
-The tests cover analytics and insights, backup import (current and legacy formats), watch session sync and notification routing. They also render the share images to `app/build/share-previews/`.
+The tests cover the prediction, analytics and insights, backup import (current and legacy formats), watch session sync and notification routing. They also render the share images to `app/build/share-previews/`. To backtest the prediction on your own export (it never needs to be in the repo):
+
+```bash
+BOWELS_EXPORT=/path/to/bowels-export.json ./gradlew :app:testDebugUnitTest --tests '*PersonalExportBacktest*' -i
+```
 
 Debug builds of the phone and watch are signed with `debug-test.keystore`, a public test key kept in the repo, so they sync with each other, and a test build from any machine or CI run installs over the previous one. Every CI run attaches both test APKs to its page under **Actions** for 14 days. Releases never use this key. Debug builds also let you fire reminders from a terminal:
 

@@ -1,25 +1,24 @@
-## What's new in v3.0.0
+## What's new in v3.1.0
 
-Bowels is now a native Android app, with a Wear OS companion.
+Smarter predictions and insights that learn from your own history.
 
 ### New
-- **Wear OS app**: start and finish a session from your watch while your phone stays in another room. It reads your heart rate the whole time and syncs to your phone on its own when they're back together.
-- **Heart rate and blood pressure** around each session, from your watch, from Health Connect (Samsung Health, Fitbit, Pixel Watch, blood pressure cuffs) or typed in. Shown in History, Insights and Weekly Wrapped.
-- **Share a milestone** straight from the Milestones screen.
-- **No setup**: notifications and Health Connect are asked once, in the app. Nothing to turn on in settings.
+- **A next-visit window, not a guess.** Bowels learns which times of day you usually go, counting recent weeks more, and shows when your next visit is likely as a window ("Tomorrow 7:10–9:30 AM"). Tested on four months of real logs, it lands within an hour of the real time more often than before (59% against 53%), and much more often for people who go twice a day.
+- **It tells you how good it is for you.** The new Your Rhythm card on Insights checks the prediction against your own past visits ("this window held the real time on 15 of your last 20 visits").
+- **Insights measured against your own usual.** Looser, harder or steadier than usual, sessions running longer than usual, a longer gap than usual: each compares your recent visits with your own baseline, so a pattern that's normal for you doesn't keep coming up.
+- **Links to your habits, only when your logs back them up.** For example "Looser after high-stress days: 6 of 11 visits were Type 6-7, against 26% otherwise". A link shows only with enough days behind it, a clear difference, and the habit seen in the last month.
+- **A real Fiber Effect card.** It compares your fiber check-ins with your stools, or says what's missing for a comparison.
 
 ### Fixed
-- Tapping the weekly report notification opens Weekly Wrapped (it used to do nothing).
-- Shared Weekly Wrapped images are sharp 1080x1920 story images, not stretched screenshots.
-- A running session survives the app being closed or the phone restarting: the notification keeps counting and brings you back to the timer.
-- The "next likely time" prediction keeps your usual time of day instead of drifting to odd hours.
+- A visit saved twice (for example from importing a backup twice) is counted once in Insights, Weekly Wrapped and the prediction.
+- "Long sessions recurring" no longer shows forever once two sessions ever ran past 12 minutes.
 
 ---
 
 ## Install
 
-**Phone**: download `bowels-v3.0.0.apk` below and open it. Updating from 2.x keeps all your history.
+**Phone**: download `bowels-v3.1.0.apk` below and open it. It updates 3.0.0 and 2.x and keeps all your history.
 
-**Watch**: `bowels-wear-v3.0.0.apk` installs from a computer over Wi-Fi in about five minutes. Follow the step-by-step guide: https://dawitsh.dev/Bowels/watch.html
+**Watch**: the watch app has no changes in this release. If you already have it, there's nothing to do. To install it, `bowels-wear-v3.1.0.apk` goes on from a computer over Wi-Fi in about five minutes. Follow the step-by-step guide: https://dawitsh.dev/Bowels/watch.html
 
 **Requirements**: Android 8.0 or newer on the phone, Wear OS 3 or newer on the watch.

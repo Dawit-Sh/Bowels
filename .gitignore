@@ -29,3 +29,6 @@ desktop.ini
 .env
 .env.*
 !.env.example
+
+# Personal data exports (backtests read them from outside the repo)
+bowels-export*.json
