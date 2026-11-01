@@ -66,6 +66,7 @@ class HomeActions(
     val connectHealth: () -> Unit,
     val installOnWatch: () -> Unit,
     val dismissWatch: () -> Unit,
+    val markWatchInstalled: () -> Unit,
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -124,6 +125,16 @@ fun HomeScreen(state: UiState, actions: HomeActions) {
             Pill("Next likely bowel time: ${analytics.predictedNextTimeLabel}", p.primary, p.primary.copy(alpha = 0.08f))
             Pill("Avg duration ${(analytics.averageDurationSeconds / 60.0).roundToInt()}m", p.secondary, p.secondary.copy(alpha = 0.08f))
             analytics.vitals.averageHeartRate?.let { Pill("Avg heart rate $it bpm", p.tertiary, p.tertiary.copy(alpha = 0.08f)) }
+            analytics.forecast?.let { f ->
+                Pill(
+                    "Tomorrow: " + when (f.outlook) {
+                        com.d_ave.bowels.domain.Outlook.Steady -> "likely steady"
+                        com.d_ave.bowels.domain.Outlook.Looser -> "leaning looser"
+                        com.d_ave.bowels.domain.Outlook.Harder -> "leaning harder"
+                    },
+                    p.tertiary, p.tertiary.copy(alpha = 0.08f),
+                )
+            }
         }
 
         BCard(Modifier.fillMaxWidth()) {
@@ -171,21 +182,12 @@ fun HomeScreen(state: UiState, actions: HomeActions) {
             }
         }
 
-        BCard(Modifier.fillMaxWidth()) {
-            BText("Daily Health Check", p.primary, 20.sp, FontWeight.Bold)
-            val health = state.latestHealth
-            healthOptions.forEach { (field, options) ->
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FieldLabel(field.replaceFirstChar { it.uppercase() })
-                    ChipRow(options, selected = { health[field] == it }) { actions.saveHealth(health.with(field, it)) }
-                }
-            }
-        }
+        HealthCheckCard(state.latestHealth, state.ownFilledToday, startOpen = false) { actions.saveHealth(it) }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
             QuickLink(Icons.Filled.AutoAwesome, "Weekly Wrapped") { actions.setScreen(Screen.Weekly) }
             QuickLink(Icons.Filled.EmojiEvents, "Milestones") { actions.setScreen(Screen.Badges) }
-            QuickLink(Icons.Filled.HealthAndSafety, "Gut health tips") { actions.setScreen(Screen.Health) }
+            QuickLink(Icons.Filled.HealthAndSafety, "Gut Practices") { actions.setScreen(Screen.Health) }
         }
     }
 }
@@ -217,6 +219,7 @@ private fun ConnectionCards(state: UiState, actions: HomeActions) {
             "Install on watch",
             actions.installOnWatch,
             actions.dismissWatch,
+            link = "Already on your watch? Tap here" to actions.markWatchInstalled,
         )
     }
 }
@@ -224,10 +227,17 @@ private fun ConnectionCards(state: UiState, actions: HomeActions) {
 @Composable
 private fun QuickLink(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     val p = LocalPalette.current
-    Box(
-        Modifier.size(80.dp).shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(p.surfaceContainerLowest).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+    Column(
+        Modifier.clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(icon, label, tint = p.primary, modifier = Modifier.size(32.dp))
+        Box(
+            Modifier.size(80.dp).shadow(4.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(p.surfaceContainerLowest),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, label, tint = p.primary, modifier = Modifier.size(32.dp))
+        }
+        BText(label, p.onSurfaceVariant, 11.sp, FontWeight.Bold)
     }
 }

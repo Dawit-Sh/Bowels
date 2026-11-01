@@ -44,6 +44,8 @@ data class AnalyticsSummary(
     val prediction: Prediction?,
     val milestoneProgressDays: Int,
     val vitals: VitalsSummary,
+    val patterns: Patterns? = null,
+    val forecast: Forecast? = null,
 )
 
 data class WeeklyWrappedSummary(
@@ -93,7 +95,19 @@ object Analytics {
             prediction = prediction,
             milestoneProgressDays = sessions.map { it.day() }.toSet().size,
             vitals = vitalsSummary(sessions.filter { it.day() >= days.first() }),
+            patterns = PatternAnalysis.build(sessions),
+            forecast = forecastCached(sessions, dailyHealth, now),
         )
+    }
+
+    private var cachedForecast: Triple<Pair<List<SessionWithAnswers>, List<DailyHealthRecord>>, LocalDate, Forecast?>? = null
+
+    private fun forecastCached(sessions: List<SessionWithAnswers>, health: List<DailyHealthRecord>, now: ZonedDateTime): Forecast? {
+        val key = sessions to health
+        cachedForecast?.let { (k, day, f) -> if (k == key && day == now.toLocalDate()) return f }
+        val f = ForecastModel.forecast(sessions, health, now)
+        cachedForecast = Triple(key, now.toLocalDate(), f)
+        return f
     }
 
     // The screen state is rebuilt often (every screen change); the sessions list only changes when data does.
@@ -298,7 +312,7 @@ object Analytics {
         return items
     }
 
-    private class Effect(val insight: InsightItem, val strength: Double)
+    private class Effect(val insight: InsightItem, val strength: Double, val habit: Habit? = null)
 
     /** [good]: a habit that can make things steadier. "Steadier after poor sleep" is almost always chance. */
     private class Habit(val field: String, val levels: Set<String>, val phrase: String, val good: Boolean = false)
@@ -320,16 +334,16 @@ object Analytics {
      * against all your other visits. Shown only with enough of both, a clear difference, and the
      * habit seen in the last 30 days (an old link that no longer happens isn't news).
      */
-    private fun habitEffects(bowel: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>, now: Instant = Instant.now()): List<Effect> {
+    private fun habitEffects(bowel: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>, now: Instant = Instant.now(), requireRecent: Boolean = true): List<Effect> {
         val visits = bowel.filter { it.stoolType != null && Duration.between(it.session.startTime, now).toDays() <= 120 }
         if (visits.size < 15) return emptyList()
         val effects = mutableListOf<Effect>()
 
         val monthAgo = now.atZone(zone).toLocalDate().minusDays(30)
         // Many habits are checked at once, so a link needs more than the usual evidence.
-        fun compare(id: String, title: (Consistency) -> String, body: (Consistency, Int, Int, String) -> String, days: Int, lately: Boolean, good: Boolean, exposed: (SessionWithAnswers) -> Boolean) {
+        fun compare(id: String, title: (Consistency) -> String, body: (Consistency, Int, Int, String) -> String, days: Int, lately: Boolean, good: Boolean, habit: Habit? = null, exposed: (SessionWithAnswers) -> Boolean) {
             val (inside, outside) = visits.partition(exposed)
-            if (!lately || days < 3 || inside.size < 5 || outside.size < 10) return
+            if ((requireRecent && !lately) || days < 3 || inside.size < 5 || outside.size < 10) return
             val (c, hits) = Consistency.entries
                 .filter { good || it != Consistency.Steady }
                 .map { c -> c to inside.count { it.stoolType!! in c.types } }
@@ -343,6 +357,7 @@ object Analytics {
             effects += Effect(
                 InsightItem("$id-${c.name.lowercase()}", title(c), body(c, hits, inside.size, share(base, outside.size)), Severity.Info),
                 zScore(hits, inside.size, base, outside.size),
+                habit,
             )
         }
 
@@ -355,6 +370,7 @@ object Analytics {
                 habitDays.size,
                 habitDays.any { day -> runCatching { LocalDate.parse(day) >= monthAgo }.getOrDefault(false) },
                 h.good,
+                h,
             ) { v -> v.day().toString() in habitDays || v.day().minusDays(1).toString() in habitDays }
         }
 
@@ -370,6 +386,20 @@ object Analytics {
             good = false,
         ) { it.id in quick }
         return effects.sortedByDescending { it.strength }
+    }
+
+    /**
+     * The links from your own history that fit one day: a habit you logged that day or the day
+     * before that, in your logs, goes with a different kind of stool. For the session detail screen.
+     */
+    fun linksFor(day: LocalDate, all: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>): List<String> {
+        val bowel = Rhythm.distinct(all).filter { it.session.kind == SessionKind.Bowel }
+        val byDay = dailyHealth.associateBy { it.day }
+        return habitEffects(bowel, dailyHealth, requireRecent = false).mapNotNull { e ->
+            val h = e.habit ?: return@mapNotNull null
+            val fits = listOf(day, day.minusDays(1)).any { d -> byDay[d.toString()]?.toInput()?.get(h.field)?.lowercase() in h.levels }
+            if (fits) "${h.phrase.replaceFirstChar { it.uppercase() }} came just before this visit. ${e.insight.body}" else null
+        }
     }
 
     /** The Fiber Effect card: a real comparison from your check-ins, or what's missing for one. */

@@ -55,6 +55,42 @@
         </activity-alias>
 
         <receiver
+            android:name=".widget.SessionWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_session">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_session" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.RhythmWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_rhythm">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_rhythm" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.WeekWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_week">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week" />
+        </receiver>
+
+        <receiver
             android:name=".notify.ReminderReceiver"
             android:exported="false" />
 

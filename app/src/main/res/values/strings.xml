@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Bowels</string>
+    <string name="widget_session">Bowels session</string>
+    <string name="widget_session_desc">Start or finish a session, or quick-log in one tap.</string>
+    <string name="widget_rhythm">Bowels rhythm</string>
+    <string name="widget_rhythm_desc">Your next likely time, today, and the outlook for tomorrow.</string>
+    <string name="widget_week">Bowels week</string>
+    <string name="widget_week_desc">Your last seven days at a glance.</string>
 </resources>

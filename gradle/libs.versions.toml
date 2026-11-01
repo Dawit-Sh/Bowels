@@ -13,6 +13,7 @@ wearCompose = "1.4.1"
 wearOngoing = "1.0.0"
 wearRemote = "1.1.0"
 concurrentFutures = "1.2.0"
+glance = "1.1.1"
 junit = "4.13.2"
 robolectric = "4.14.1"
 
@@ -23,6 +24,7 @@ androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-ru
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "lifecycle" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }

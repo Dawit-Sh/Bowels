@@ -58,6 +58,7 @@ import com.d_ave.bowels.ui.screens.HomeScreen
 import com.d_ave.bowels.ui.screens.OnboardingScreen
 import com.d_ave.bowels.ui.screens.QuestionActions
 import com.d_ave.bowels.ui.screens.QuestionsScreen
+import com.d_ave.bowels.ui.screens.SessionDetailScreen
 import com.d_ave.bowels.ui.screens.SettingsActions
 import com.d_ave.bowels.ui.screens.SettingsScreen
 import com.d_ave.bowels.ui.screens.WeeklyWrappedScreen
@@ -111,7 +112,7 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.Dark -> true
                 ThemeMode.Light -> false
             }
-            val palette = remember(dark, state.settings.accent) { buildPalette(dark, state.settings.accent) }
+            val palette = remember(dark, state.settings.accent, state.settings.background) { paletteFor(state.settings, dark) }
             LaunchedEffect(dark) {
                 val transparent = AndroidColor.TRANSPARENT
                 enableEdgeToEdge(
@@ -203,7 +204,14 @@ class MainActivity : ComponentActivity() {
             ThemeMode.Dark -> true
             ThemeMode.Light -> false
         }
-        return buildPalette(dark, s.accent)
+        return paletteFor(s, dark)
+    }
+
+    private fun paletteFor(s: com.d_ave.bowels.data.AppSettings, dark: Boolean): Palette {
+        val dynamic = if (s.accent == com.d_ave.bowels.data.AccentKey.Wallpaper && android.os.Build.VERSION.SDK_INT >= 31) {
+            if (dark) androidx.compose.material3.dynamicDarkColorScheme(this) else androidx.compose.material3.dynamicLightColorScheme(this)
+        } else null
+        return buildPalette(dark, s.accent, s.background, dynamic)
     }
 
     private fun shareWeekly() {
@@ -260,10 +268,14 @@ class MainActivity : ComponentActivity() {
             return
         }
         val screen = state.screen
-        val offTab = screen in setOf(Screen.Weekly, Screen.Health, Screen.Settings, Screen.Questions, Screen.Badges)
-        BackHandler(enabled = screen != Screen.Home && screen != Screen.Onboarding) {
-            viewModel.setScreen(if (screen == Screen.Questions) Screen.Active else Screen.Home)
+        val offTab = screen in setOf(Screen.Weekly, Screen.Health, Screen.Settings, Screen.Questions, Screen.Badges, Screen.Session)
+        // Where back goes: a session goes back to History, the questions to the timer, the rest Home.
+        val backTo = when (screen) {
+            Screen.Questions -> Screen.Active
+            Screen.Session -> Screen.History
+            else -> Screen.Home
         }
+        BackHandler(enabled = screen != Screen.Home && screen != Screen.Onboarding) { viewModel.setScreen(backTo) }
 
         Box(Modifier.fillMaxSize().background(p.background)) {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -272,14 +284,23 @@ class MainActivity : ComponentActivity() {
                         Screen.History -> "Data & Privacy"
                         Screen.Analytics -> "Insights"
                         Screen.Badges -> "Milestones"
+                        Screen.Health -> "Gut Practices"
+                        Screen.Session -> "Session"
                         else -> "Bowels"
                     }
-                    ScreenHeader(title, back = offTab) { viewModel.setScreen(if (offTab) Screen.Home else Screen.Settings) }
+                    ScreenHeader(title, back = offTab) { viewModel.setScreen(if (offTab) backTo else Screen.Settings) }
                 }
                 Box(Modifier.weight(1f)) { Content(state) }
             }
             if (screen != Screen.Onboarding) {
-                BottomNav(if (screen == Screen.Questions) Screen.Active else screen, viewModel::setScreen, Modifier.align(Alignment.BottomCenter))
+                BottomNav(
+                    when (screen) {
+                        Screen.Questions -> Screen.Active
+                        Screen.Session -> Screen.History
+                        else -> screen
+                    },
+                    viewModel::setScreen, Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
 
@@ -322,6 +343,7 @@ class MainActivity : ComponentActivity() {
                     connectHealth = { connectHealth() },
                     installOnWatch = viewModel::installOnWatch,
                     dismissWatch = viewModel::dismissWatchPrompt,
+                    markWatchInstalled = viewModel::markWatchInstalled,
                 ),
             )
             Screen.Active -> ActiveSessionScreen(state.draft, viewModel::updateDraft, onStart = { withNotificationPermission(viewModel::startSession) }, onFinish = viewModel::finishSession, onCancel = viewModel::cancelSession)
@@ -329,19 +351,31 @@ class MainActivity : ComponentActivity() {
                 state.draft, state.ownHealth, state.ownFilledToday, state.connections,
                 QuestionActions(viewModel::updateDraft, viewModel::setKind, viewModel::setManualVitals, { connectHealth() }, viewModel::saveQuestions),
             )
-            Screen.History -> HistoryScreen(state.sessions, onExport = ::exportData, onImport = { importDocument.launch(arrayOf("application/json", "text/json", "text/plain", "*/*")) })
-            Screen.Analytics -> state.analytics?.let { AnalyticsScreen(it, state.insights) }
+            Screen.History -> HistoryScreen(state.sessions, onExport = ::exportData, onImport = { importDocument.launch(arrayOf("application/json", "text/json", "text/plain", "*/*")) }, onOpen = viewModel::openSession)
+            Screen.Session -> state.sessionDetail?.let { SessionDetailScreen(it) }
+            Screen.Analytics -> state.analytics?.let { AnalyticsScreen(it, state.insights, onGuidance = { viewModel.setScreen(Screen.Health) }) }
             Screen.Weekly -> state.weekly?.let { weekly ->
                 val preview by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, weekly, p) {
                     value = withContext(Dispatchers.Default) { shareCards.weeklyWrapped(weekly, p).asImageBitmap() }
                 }
                 WeeklyWrappedScreen(weekly, preview, onShare = ::shareWeekly, onSave = ::saveWeekly)
             }
-            Screen.Badges -> BadgesScreen(state.analytics?.milestoneProgressDays ?: 0, onShare = ::shareMilestone)
-            Screen.Health -> HealthInfoScreen()
+            Screen.Badges -> BadgesScreen(state.analytics?.milestoneProgressDays ?: 0, state.achievements, onShare = ::shareMilestone)
+            Screen.Health -> HealthInfoScreen(state.guidance)
             Screen.Settings -> SettingsScreen(
                 state.settings, state.connections, BuildConfig.VERSION_NAME,
-                SettingsActions(viewModel::setThemeMode, viewModel::setAccent, viewModel::setReminderHour, { connectHealth() }, viewModel::installOnWatch, ::checkUpdates),
+                SettingsActions(
+                    setTheme = viewModel::setThemeMode,
+                    setAccent = viewModel::setAccent,
+                    setBackground = viewModel::setBackground,
+                    setReminderTimes = viewModel::setReminderTimes,
+                    setRemindersOn = { on -> if (on) withNotificationPermission { viewModel.setRemindersOn(true) } else viewModel.setRemindersOn(false) },
+                    connectHealth = { connectHealth() },
+                    installOnWatch = viewModel::installOnWatch,
+                    checkUpdates = ::checkUpdates,
+                    recheckWatch = viewModel::recheckWatch,
+                    markWatchInstalled = viewModel::markWatchInstalled,
+                ),
             )
         }
     }

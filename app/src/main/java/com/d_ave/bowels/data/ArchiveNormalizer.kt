@@ -22,7 +22,7 @@ object ArchiveNormalizer {
         "urine_color" to "urine_color",
     )
 
-    private val knownSettingKeys = setOf("themeMode", "accent", "reminderHour", "notificationsEnabled", "hasOnboarded")
+    private val knownSettingKeys = setOf("themeMode", "accent", "background", "reminderHour", "reminderTimes", "notificationsEnabled", "hasOnboarded")
 
     private fun now() = Instant.now().toIsoString()
 

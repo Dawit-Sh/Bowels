@@ -37,9 +37,11 @@ object Notifications {
     private const val ID_WEEKLY = 1002
     private const val ID_SESSION = 1003
     private const val ID_MILESTONE_BASE = 2000
+    private const val ID_ACHIEVEMENT_BASE = 3000
 
     const val EXTRA_DESTINATION = "destination"
     const val DESTINATION_FINISH = "finish_session"
+    const val DESTINATION_START = "start_session"
 
     // The weekly report goes out on Saturday at 18:00, as before.
     private val WEEKLY_DAY = DayOfWeek.SATURDAY
@@ -84,11 +86,11 @@ object Notifications {
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(0xFF56642B.toInt())
 
-    fun showDailyReminder(context: Context) = post(
+    fun showDailyReminder(context: Context, text: String = "Log today's rhythm and health check in under a minute.") = post(
         context, ID_DAILY,
         base(context, CHANNEL_REMINDERS)
             .setContentTitle("Bowels check-in")
-            .setContentText("Log today's rhythm and health check in under a minute.")
+            .setContentText(text)
             .setContentIntent(openIntent(context, Screen.Home.name, ID_DAILY))
             .setAutoCancel(true),
     )
@@ -108,6 +110,15 @@ object Notifications {
             .setContentTitle("🎉 Milestone Unlocked: ${milestone.title}")
             .setContentText("${milestone.days} day${if (milestone.days == 1) "" else "s"} achieved! ${milestone.body}")
             .setContentIntent(openIntent(context, Screen.Badges.name, ID_MILESTONE_BASE + milestone.days))
+            .setAutoCancel(true),
+    )
+
+    fun showAchievement(context: Context, a: com.d_ave.bowels.domain.Achievement) = post(
+        context, ID_ACHIEVEMENT_BASE + (a.id.hashCode() and 0xFFF),
+        base(context, CHANNEL_MILESTONES)
+            .setContentTitle("${a.emoji} Achievement: ${a.title}")
+            .setContentText(a.body.removeSuffix(".") + ". Done!")
+            .setContentIntent(openIntent(context, Screen.Badges.name, ID_ACHIEVEMENT_BASE + (a.id.hashCode() and 0xFFF)))
             .setAutoCancel(true),
     )
 
@@ -145,26 +156,41 @@ object Notifications {
 
     private fun schedulePrefs(context: Context) = context.getSharedPreferences("bowels-schedule", Context.MODE_PRIVATE)
 
-    fun scheduleReminders(context: Context, hour: Int, enabled: Boolean = true) {
-        schedulePrefs(context).edit().putInt("hour", hour).putBoolean("enabled", enabled).apply()
+    /** One alarm per reminder time, plus the weekly report. [enabled] off silences all of them. */
+    fun scheduleReminders(context: Context, times: List<LocalTime>, enabled: Boolean = true) {
+        schedulePrefs(context).edit()
+            .putString("times", times.joinToString(",") { "%02d:%02d".format(it.hour, it.minute) })
+            .putBoolean("enabled", enabled)
+            .remove("hour")
+            .apply()
         val alarms = context.getSystemService(AlarmManager::class.java)
-        val daily = ReminderReceiver.pendingIntent(context, ReminderReceiver.ACTION_DAILY)
         val weekly = ReminderReceiver.pendingIntent(context, ReminderReceiver.ACTION_WEEKLY)
-        alarms.cancel(daily)
+        for (i in 0 until MAX_DAILY_ALARMS) alarms.cancel(ReminderReceiver.pendingIntent(context, ReminderReceiver.ACTION_DAILY, i))
         alarms.cancel(weekly)
         if (!enabled) return
-        alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextDaily(hour).toInstant().toEpochMilli(), daily)
+        // You picked the time, so it should come close to it: a 10-minute window (an inexact
+        // alarm can drift by up to an hour) without asking for the exact-alarm permission.
+        times.take(MAX_DAILY_ALARMS).forEachIndexed { i, time ->
+            alarms.setWindow(AlarmManager.RTC_WAKEUP, nextAt(time).toInstant().toEpochMilli(), 10 * 60_000L, ReminderReceiver.pendingIntent(context, ReminderReceiver.ACTION_DAILY, i))
+        }
         alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextWeekly().toInstant().toEpochMilli(), weekly)
     }
 
     fun rescheduleFromSaved(context: Context) {
         val prefs = schedulePrefs(context)
-        if (prefs.contains("hour")) scheduleReminders(context, prefs.getInt("hour", 20), prefs.getBoolean("enabled", true))
+        val times = when {
+            prefs.contains("times") -> com.d_ave.bowels.data.AppSettings.parseTimes(prefs.getString("times", "")).orEmpty()
+            prefs.contains("hour") -> listOf(LocalTime.of(prefs.getInt("hour", 20), 0)) // saved by 3.1 and earlier
+            else -> return
+        }
+        scheduleReminders(context, times, prefs.getBoolean("enabled", true))
     }
 
-    private fun nextDaily(hour: Int): ZonedDateTime {
+    private const val MAX_DAILY_ALARMS = 8
+
+    private fun nextAt(time: LocalTime): ZonedDateTime {
         val now = ZonedDateTime.now(ZoneId.systemDefault())
-        val today = now.toLocalDate().atTime(hour, 0).atZone(now.zone)
+        val today = now.toLocalDate().atTime(time).atZone(now.zone)
         return if (today.isAfter(now.plusMinutes(1))) today else today.plusDays(1)
     }
 

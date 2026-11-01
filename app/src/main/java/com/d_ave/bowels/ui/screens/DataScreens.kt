@@ -1,6 +1,22 @@
 package com.d_ave.bowels.ui.screens
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Spa
+import androidx.compose.ui.text.style.TextAlign
+import com.d_ave.bowels.domain.Forecast
+import com.d_ave.bowels.domain.Outlook
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.d_ave.bowels.domain.stoolTypeMeta
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,8 +71,9 @@ import kotlin.math.roundToInt
 private val rowTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(Locale.getDefault()).withZone(ZoneId.systemDefault())
 
 @Composable
-fun HistoryScreen(sessions: List<SessionWithAnswers>, onExport: () -> Unit, onImport: () -> Unit) {
+fun HistoryScreen(sessions: List<SessionWithAnswers>, onExport: () -> Unit, onImport: () -> Unit, onOpen: (Long) -> Unit = {}) {
     val p = LocalPalette.current
+    var shown by rememberSaveable { mutableIntStateOf(20) }
     ScreenColumn {
         SectionTitle("Data & Privacy", "Manage archives, keep exports local, and review your recent history.")
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -73,9 +90,10 @@ fun HistoryScreen(sessions: List<SessionWithAnswers>, onExport: () -> Unit, onIm
         }
         BCard(Modifier.fillMaxWidth()) {
             BText("Recent Sessions", p.primary, 20.sp, FontWeight.Bold)
-            sessions.take(12).forEachIndexed { index, item ->
+            BText("Tap a session to see how it compares with your usual.", p.onSurfaceVariant, 13.sp)
+            sessions.take(shown).forEachIndexed { index, item ->
                 if (index > 0) HorizontalDivider(color = p.outline.copy(alpha = 0.13f))
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onOpen(item.id) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             BText(if (item.session.kind == SessionKind.Bowel) "Bowel session" else "Urine session", p.onSurface, 15.sp, FontWeight.Bold)
@@ -84,8 +102,13 @@ fun HistoryScreen(sessions: List<SessionWithAnswers>, onExport: () -> Unit, onIm
                         BText(rowTime.format(item.session.startTime), p.onSurfaceVariant)
                         vitalsLine(item)?.let { BText(it, p.secondary, 12.sp, FontWeight.Medium) }
                     }
+                    item.stoolType?.let { BText(stoolTypeMeta[it]?.emoji.orEmpty(), p.onSurface, 18.sp, modifier = Modifier.padding(end = 10.dp)) }
                     BText("${(item.session.durationSeconds / 60.0).roundToInt()}m", p.primary, 18.sp, FontWeight.ExtraBold)
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.outline, modifier = Modifier.size(20.dp))
                 }
+            }
+            if (sessions.size > shown) {
+                BText("Show more", p.primary, 14.sp, FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable { shown += 30 }.padding(vertical = 6.dp))
             }
         }
     }
@@ -101,18 +124,113 @@ private fun vitalsLine(item: SessionWithAnswers): String? {
 }
 
 @Composable
-fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>) {
+fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>, onGuidance: () -> Unit = {}) {
     val p = LocalPalette.current
+    val pat = analytics.patterns
     ScreenColumn {
-        SectionTitle("14-Day Insights", "Patterns from what you've logged over the last two weeks.")
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BCard(Modifier.weight(1f).heightIn(min = 150.dp)) {
-                BText(analytics.totalVisits.toString(), p.onSurface, 36.sp, FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-                BText("TOTAL VISITS", p.onSurfaceVariant, 11.sp, FontWeight.Bold, letterSpacing = 1.sp)
+        SectionTitle("Your patterns", "From what you've logged, measured against your own usual.")
+
+        analytics.forecast?.let { ForecastCard(it) }
+
+        pat?.regularity?.let { score ->
+            BCard(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        BText("Regularity", p.onSurface, 22.sp, FontWeight.Bold)
+                        BText("Last 30 days", p.onSurfaceVariant, 13.sp)
+                    }
+                    BText("$score", p.primary, 44.sp, FontWeight.ExtraBold)
+                    BText("/100", p.outline, 14.sp, FontWeight.Bold, modifier = Modifier.padding(start = 2.dp, top = 14.dp))
+                }
+                pat.regularityParts.forEach { (name, value) -> Meter(name, value) }
+                BText(
+                    "Timing: how close your first visit of the day stays to the same time. Form: how many were Type 3-4. Frequency: days within the normal 3 a week to 3 a day.",
+                    p.onSurfaceVariant, 12.sp, lineHeight = 17.sp,
+                )
             }
-            BCard(Modifier.weight(1f).heightIn(min = 150.dp), color = p.primaryContainer) {
-                BText("${(analytics.averageDurationSeconds / 60.0).roundToInt()}m", p.onPrimary, 36.sp, FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-                BText("AVG DURATION", p.onPrimary.copy(alpha = 0.8f), 11.sp, FontWeight.Bold, letterSpacing = 1.sp)
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatTile(analytics.totalVisits.toString(), "TOTAL VISITS", Modifier.weight(1f))
+            StatTile("${(analytics.averageDurationSeconds / 60.0).roundToInt()}m", "AVG LENGTH", Modifier.weight(1f), highlight = true)
+        }
+        if (pat != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatTile("${pat.currentStreak}", "DAY STREAK", Modifier.weight(1f))
+                StatTile("${pat.longestStreak}", "LONGEST", Modifier.weight(1f))
+                StatTile(pat.usualGapHours?.let { "${it.roundToInt()}h" } ?: "—", "USUAL GAP", Modifier.weight(1f))
+            }
+        }
+
+        BCard(Modifier.fillMaxWidth()) {
+            BText("Your Rhythm", p.onSurface, 22.sp, FontWeight.Bold)
+            BText("Next likely: ${analytics.predictedNextTimeLabel}", p.primary, 16.sp, FontWeight.Bold)
+            BText(analytics.predictionNote, p.onSurfaceVariant, lineHeight = 20.sp)
+        }
+
+        if (pat != null && pat.hourly.sum() > 0) {
+            BCard(Modifier.fillMaxWidth()) {
+                BText("Time of day", p.onSurface, 22.sp, FontWeight.Bold)
+                BText("When your visits happened in the last 30 days.", p.onSurfaceVariant, 13.sp)
+                val peak = pat.hourly.max().coerceAtLeast(1)
+                Row(Modifier.fillMaxWidth().height(90.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    pat.hourly.forEach { n ->
+                        Box(Modifier.weight(1f).fillMaxHeight(0.06f + 0.94f * n / peak).clip(RoundedCornerShape(3.dp)).background(if (n == peak) p.primary else if (n > 0) p.primaryFixedDim else p.surfaceContainerHigh))
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf("12a", "6a", "12p", "6p", "12a").forEach { BText(it, p.outline, 10.sp, FontWeight.Bold) }
+                }
+            }
+        }
+
+        if (pat != null && pat.weekday.any { it > 0 }) {
+            BCard(Modifier.fillMaxWidth()) {
+                BText("By weekday", p.onSurface, 22.sp, FontWeight.Bold)
+                BText("Average visits on each day, last 8 weeks.", p.onSurfaceVariant, 13.sp)
+                val top = pat.weekday.max().coerceAtLeast(0.1)
+                Row(Modifier.fillMaxWidth().height(110.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pat.weekday.forEachIndexed { i, v ->
+                        Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+                            BText("%.1f".format(v), p.primary, 10.sp, FontWeight.Bold)
+                            Box(Modifier.fillMaxWidth().fillMaxHeight((0.08f + 0.72f * (v / top)).toFloat()).clip(RoundedCornerShape(8.dp)).background(if (v == top) p.primary else p.primaryFixedDim))
+                            BText(DayOfWeek.of(i + 1).getDisplayName(TextStyle.NARROW, Locale.getDefault()), p.outline, 11.sp, FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (pat != null && pat.weeks.any { it.visits > 0 }) {
+            BCard(Modifier.fillMaxWidth()) {
+                BText("8-week trend", p.onSurface, 22.sp, FontWeight.Bold)
+                FieldLabelSmall("Type 3-4 share")
+                WeekBars(pat.weeks.map { it.steadyShare }, { v -> "${(v * 100).roundToInt()}%" }, 1.0)
+                FieldLabelSmall("Visits per week")
+                WeekBars(pat.weeks.map { it.visits.toDouble().takeIf { v -> v > 0 } }, { v -> "${v.roundToInt()}" }, pat.weeks.maxOf { it.visits }.toDouble().coerceAtLeast(1.0))
+                FieldLabelSmall("Typical length (min)")
+                WeekBars(pat.weeks.map { it.medianMinutes }, { v -> "${v.roundToInt()}" }, pat.weeks.mapNotNull { it.medianMinutes }.maxOrNull() ?: 1.0)
+            }
+        }
+
+        if (pat != null && pat.symptoms.isNotEmpty()) {
+            BCard(Modifier.fillMaxWidth()) {
+                BText("Symptoms", p.onSurface, 22.sp, FontWeight.Bold)
+                BText("Share of visits in the last 30 days, against the 60 before.", p.onSurfaceVariant, 13.sp)
+                pat.symptoms.forEach { sym ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BText(sym.name, p.onSurface, 14.sp, FontWeight.Medium, modifier = Modifier.weight(1f))
+                        sym.before?.let { b ->
+                            val d = sym.recent - b
+                            BText(
+                                when { d >= 5 -> "▲ $d"; d <= -5 -> "▼ ${-d}"; else -> "=" },
+                                when { d >= 5 -> p.secondary; d <= -5 -> p.primary; else -> p.outline }, 12.sp, FontWeight.Bold,
+                                modifier = Modifier.padding(end = 10.dp),
+                            )
+                        }
+                        BText("${sym.recent}%", p.primary, 15.sp, FontWeight.ExtraBold)
+                    }
+                }
             }
         }
 
@@ -137,20 +255,15 @@ fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>) {
         BCard(Modifier.fillMaxWidth()) {
             BText("Bristol Distribution", p.onSurface, 22.sp, FontWeight.Bold)
             Row(Modifier.fillMaxWidth().heightIn(min = 180.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val top = analytics.stoolDistribution.maxOf { it.second }.coerceAtLeast(1)
                 analytics.stoolDistribution.forEach { (type, count) ->
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         BText(count.toString(), p.primary, 11.sp, FontWeight.Bold)
-                        Box(Modifier.fillMaxWidth().height((22 + minOf(count, 10) * 12).dp).background(if (type == 3 || type == 4) p.primary else p.surfaceContainerHighest, CircleShape))
+                        Box(Modifier.fillMaxWidth().height((22 + 120 * count / top).dp).background(if (type == 3 || type == 4) p.primary else p.surfaceContainerHighest, CircleShape))
                         BText("T$type", p.onSurfaceVariant, 11.sp, FontWeight.Bold)
                     }
                 }
             }
-        }
-
-        BCard(Modifier.fillMaxWidth()) {
-            BText("Your Rhythm", p.onSurface, 22.sp, FontWeight.Bold)
-            BText("Next likely: ${analytics.predictedNextTimeLabel}", p.primary, 16.sp, FontWeight.Bold)
-            BText(analytics.predictionNote, p.onSurfaceVariant, lineHeight = 20.sp)
         }
 
         BCard(Modifier.fillMaxWidth()) {
@@ -167,6 +280,87 @@ fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>) {
                 }
                 BText(item.title, tone, 20.sp, FontWeight.Bold)
                 BText(item.body, p.onSurfaceVariant, lineHeight = 20.sp)
+            }
+        }
+        SecondaryButton("What could help: Gut Practices", Icons.Filled.Spa, onClick = onGuidance)
+    }
+}
+
+/** Tomorrow's outlook from the on-device model, with what's driving it and how it has done. */
+@Composable
+fun ForecastCard(f: Forecast) {
+    val p = LocalPalette.current
+    BCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Filled.AutoAwesome, null, tint = p.tertiary)
+            BText("Tomorrow's outlook", p.onSurface, 22.sp, FontWeight.Bold)
+        }
+        val tone = when (f.outlook) { Outlook.Steady -> p.primary; Outlook.Looser -> p.secondary; Outlook.Harder -> p.tertiary }
+        BText(
+            when (f.outlook) {
+                Outlook.Steady -> "Likely steady"
+                Outlook.Looser -> "Leaning looser"
+                Outlook.Harder -> "Leaning harder"
+            },
+            tone, 26.sp, FontWeight.ExtraBold,
+        )
+        Outlook.entries.forEach { o -> Meter(o.label, ((f.chance[o] ?: 0.0) * 100).roundToInt(), suffix = "%") }
+        if (f.drivers.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                BText("WHAT'S PUSHING IT", p.primary, 10.sp, FontWeight.Bold, letterSpacing = 1.sp)
+                f.drivers.forEach { d -> BText("${d.text} → ${d.towards.label.lowercase()}", p.onSurface, 14.sp, lineHeight = 19.sp) }
+            }
+        }
+        BText(
+            buildString {
+                append("A small model trained on this phone from ${f.daysLearned} days of your logs, starting from what research says about water, fiber, stress, sleep, caffeine and alcohol.")
+                if (f.checked >= 5) append(" Checked on your last ${f.checked} days, it was right on ${f.hits}; guessing \"like usual\" would have got ${f.baselineHits}.")
+                if (!f.usedTodaysCheck) append(" Fill in today's health check to sharpen it.")
+            },
+            p.onSurfaceVariant, 12.sp, lineHeight = 17.sp,
+        )
+    }
+}
+
+@Composable
+private fun Meter(label: String, value: Int, suffix: String = "") {
+    val p = LocalPalette.current
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        BText(label, p.onSurfaceVariant, 12.sp, FontWeight.Bold, modifier = Modifier.width(78.dp))
+        Box(Modifier.weight(1f).height(10.dp).clip(CircleShape).background(p.surfaceContainerHigh)) {
+            Box(Modifier.fillMaxWidth(value.coerceIn(0, 100) / 100f).fillMaxHeight().clip(CircleShape).background(p.primary))
+        }
+        BText("$value$suffix", p.primary, 12.sp, FontWeight.ExtraBold, modifier = Modifier.width(40.dp), align = TextAlign.End)
+    }
+}
+
+@Composable
+private fun StatTile(value: String, label: String, modifier: Modifier, highlight: Boolean = false) {
+    val p = LocalPalette.current
+    BCard(modifier.heightIn(min = 110.dp), color = if (highlight) p.primaryContainer else null) {
+        BText(value, if (highlight) p.onPrimary else p.onSurface, 30.sp, FontWeight.ExtraBold, modifier = Modifier.weight(1f), maxLines = 1)
+        BText(label, if (highlight) p.onPrimary.copy(alpha = 0.8f) else p.onSurfaceVariant, 10.sp, FontWeight.Bold, letterSpacing = 1.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun FieldLabelSmall(text: String) {
+    val p = LocalPalette.current
+    BText(text.uppercase(), p.onSurfaceVariant, 10.sp, FontWeight.Bold, letterSpacing = 1.sp)
+}
+
+/** Eight small bars, one per week, oldest first; empty weeks stay flat. */
+@Composable
+private fun WeekBars(values: List<Double?>, label: (Double) -> String, max: Double) {
+    val p = LocalPalette.current
+    Row(Modifier.fillMaxWidth().height(70.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        values.forEachIndexed { i, v ->
+            Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+                if (v != null) BText(label(v), p.primary, 9.sp, FontWeight.Bold, maxLines = 1)
+                Box(
+                    Modifier.fillMaxWidth().fillMaxHeight(if (v == null) 0.05f else (0.08f + 0.62f * (v / max)).toFloat().coerceIn(0.05f, 0.7f))
+                        .clip(RoundedCornerShape(6.dp)).background(if (i == values.lastIndex) p.primary else p.primaryFixedDim),
+                )
             }
         }
     }

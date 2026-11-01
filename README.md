@@ -28,15 +28,21 @@ Log sessions in one tap, from your phone or your watch, see your heart rate and 
 
 | | |
 |---|---|
-| **Quick Log** | Save a bowel entry in one tap |
-| **Sessions** | Time a session, finish it from the app or the notification, answer a few questions |
+| **Quick Log** | Save a bowel entry in one tap, in the app or from the widget |
+| **Sessions** | Time a session, finish it from the app, the notification or the widget, answer a few questions and the daily health check |
 | **Wear OS watch** | Start and finish a session from your wrist when your phone is in another room. The watch measures your heart rate during the session and syncs to the phone by itself, even if the phone was out of range at the time |
 | **Heart rate and blood pressure** | Read from Health Connect (Samsung Health, Fitbit, Pixel Watch, Omron and other cuffs write there) for the time of each session, or typed in. Read-only |
-| **Daily health check** | Water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, mood |
+| **Daily health check** | Water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, mood, asked after each session and pre-filled from last time |
 | **Next visit window** | Learns your usual times on the phone and shows when your next visit is likely, with how often that window held up for you |
-| **Insights** | Looser, harder or steadier than your own usual, longer sessions or gaps than usual, links to your habits when your logs back them up, pain, blood, and how straining affects your heart rate |
+| **Tomorrow's outlook** | A small model trained on the phone from your own logs forecasts steady, looser or harder, and shows what's driving it |
+| **Insights** | Regularity score, time of day and weekday patterns, 8-week trends, symptoms, streaks, and changes measured against your own usual |
+| **Gut Practices** | Advice written from your logs, each with the studies behind it (checked on PubMed) |
+| **Session pages** | Tap any session in History to compare it with your usual and see that day's habits |
+| **Widgets** | Session (start, finish, quick log), Rhythm and Week |
+| **Themes** | 8 backgrounds (true black included), 11 accents, wallpaper colors on Android 12+ |
+| **Reminders** | As many as you want, at your times; skipped when the day is already logged |
 | **Weekly Wrapped** | Your week as a story-sized image to share or save |
-| **Milestones** | Celebrate logged-day streaks, and share them |
+| **Milestones and achievements** | Day milestones and 24 achievements to earn and share |
 | **Backups** | Export and import a JSON archive (2.x backups import too) |
 
 Everything is stored on the device. There is no account and no server.
@@ -98,12 +104,14 @@ Once Bowels is on the Play Store (an internal testing track is enough), the phon
 .
 |-- app/        Phone app (Jetpack Compose)
 |   |-- data/       SQLite, repository, backups, local prefs
-|   |-- domain/     Rhythm (next-visit model), analytics, insights, content, demo data
+|   |-- domain/     Rhythm (next-visit model), Forecast (on-device outlook model), analytics,
+|   |               patterns, guidance and research, achievements, session details, content
 |   |-- health/     Health Connect reads
 |   |-- notify/     Reminders, weekly report, session and milestone notifications
 |   |-- share/      1080x1920 share images
 |   |-- wear/       Watch sync service and install prompt
 |   |-- ui/         ViewModel, theme, components, screens
+|   |-- widget/     Home-screen widgets (Glance)
 |-- wear/       Wear OS app (Compose for Wear, Health Services, Data Layer)
 |-- shared/     The phone/watch sync contract
 |-- docs/       GitHub Pages site and screenshots

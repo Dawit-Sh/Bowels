@@ -24,6 +24,16 @@ class Prefs(private val context: Context) {
         get() = prefs.getBoolean(KEY_WATCH_PROMPT, false)
         set(value) = prefs.edit().putBoolean(KEY_WATCH_PROMPT, value).apply()
 
+    /** Watches that have sent a session, or that you said have Bowels: they count as ready. */
+    var knownWatches: Set<String>
+        get() = prefs.getStringSet(KEY_KNOWN_WATCHES, emptySet()).orEmpty()
+        set(value) = prefs.edit().putStringSet(KEY_KNOWN_WATCHES, value).apply()
+
+    /** Achievements already announced, by id. */
+    var unlockedAchievements: Set<String>
+        get() = prefs.getStringSet(KEY_ACHIEVEMENTS, emptySet()).orEmpty()
+        set(value) = prefs.edit().putStringSet(KEY_ACHIEVEMENTS, value).apply()
+
     var healthConnectAsked: Boolean
         get() = prefs.getBoolean(KEY_HC_ASKED, false)
         set(value) = prefs.edit().putBoolean(KEY_HC_ASKED, value).apply()
@@ -99,6 +109,8 @@ class Prefs(private val context: Context) {
         const val KEY_MIGRATED = "migrated_async_storage"
         const val KEY_WATCH_PROMPT = "watch_prompt_dismissed"
         const val KEY_HC_ASKED = "health_connect_asked"
+        const val KEY_KNOWN_WATCHES = "known_watches"
+        const val KEY_ACHIEVEMENTS = "unlocked_achievements"
         const val OLD_DRAFT = "bowels-active-draft"
         const val OLD_MILESTONES = "bowels-unlocked-milestones"
     }

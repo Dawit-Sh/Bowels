@@ -18,12 +18,17 @@ class WatchConnector(private val context: Context) {
         data class Ready(val name: String) : State
     }
 
-    suspend fun state(): State = runCatching {
+    /**
+     * [known]: watches that already sent a session or that you said have Bowels. Bowels 3.0 and
+     * 3.1 on the watch didn't announce themselves (their release builds lost the capability
+     * list), so a watch that has synced counts as ready too.
+     */
+    suspend fun state(known: Set<String> = emptySet()): State = runCatching {
         val nodes = Wearable.getNodeClient(context).connectedNodes.await()
         if (nodes.isEmpty()) return@runCatching State.NoWatch
         val withApp = Wearable.getCapabilityClient(context)
             .getCapability(WatchProtocol.WATCH_CAPABILITY, CapabilityClient.FILTER_ALL)
-            .await().nodes.map { it.id }.toSet()
+            .await().nodes.map { it.id }.toSet() + known
         val ready = nodes.firstOrNull { it.id in withApp }
         if (ready != null) State.Ready(ready.displayName) else State.NeedsInstall(nodes.first().id, nodes.first().displayName)
     }.getOrDefault(State.NoWatch) // No Wear OS app on the phone means no watch.

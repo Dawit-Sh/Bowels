@@ -29,6 +29,8 @@ class WatchSyncService : WearableListenerService() {
         // Listener callbacks already run off the main thread, so blocking here is fine.
         runBlocking {
             for ((uri, raw) in changed) {
+                // The item's host is the watch that sent it: it has Bowels, whatever it announces.
+                uri.host?.let { app.prefs.knownWatches = app.prefs.knownWatches + it }
                 val payload = raw?.let { runCatching { WatchSessionPayload.fromJson(it) }.getOrNull() }
                 if (payload != null) {
                     val saved = app.repository.saveWatchSession(payload)

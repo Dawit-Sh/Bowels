@@ -19,15 +19,31 @@ enum class ThemeMode(val key: String) {
     }
 }
 
-enum class AccentKey(val key: String) {
-    Olive("olive"), Coral("coral"), Rose("rose"), Slate("slate");
+enum class AccentKey(val key: String, val label: String) {
+    Olive("olive", "Olive"), Coral("coral", "Coral"), Rose("rose", "Rose"), Slate("slate", "Slate"),
+    Ocean("ocean", "Ocean"), Forest("forest", "Forest"), Lavender("lavender", "Lavender"),
+    Sunset("sunset", "Sunset"), Berry("berry", "Berry"), Mono("mono", "Mono"),
+    /** Colors from the phone's wallpaper (Android 12 and newer). */
+    Wallpaper("wallpaper", "Wallpaper");
 
     companion object {
         fun from(value: String?) = entries.firstOrNull { it.key == value } ?: Olive
     }
 }
 
-enum class Screen { Onboarding, Home, Active, Questions, History, Analytics, Weekly, Health, Settings, Badges }
+/** The surfaces behind everything: paper color in light mode, depth in dark mode. */
+enum class BackgroundKey(val key: String, val label: String) {
+    Cream("cream", "Cream"), Paper("paper", "Paper"), Sand("sand", "Sand"), Mist("mist", "Mist"),
+    Blush("blush", "Blush"), Sage("sage", "Sage"), Dusk("dusk", "Dusk"),
+    /** True black in dark mode, for OLED screens. */
+    Black("black", "Black");
+
+    companion object {
+        fun from(value: String?) = entries.firstOrNull { it.key == value } ?: Cream
+    }
+}
+
+enum class Screen { Onboarding, Home, Active, Questions, History, Analytics, Weekly, Health, Settings, Badges, Session }
 
 data class SessionRecord(
     val id: Long,
@@ -106,7 +122,10 @@ data class DailyHealthInput(
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.System,
     val accent: AccentKey = AccentKey.Olive,
+    val background: BackgroundKey = BackgroundKey.Cream,
     val reminderHour: Int = 20,
+    /** Daily reminders, as many as you like (up to [MAX_REMINDERS]), at the times you pick. */
+    val reminderTimes: List<java.time.LocalTime> = listOf(java.time.LocalTime.of(reminderHour, 0)),
     val notificationsEnabled: Boolean = true,
     val hasOnboarded: Boolean = false,
     val hasRealData: Boolean = false,
@@ -114,17 +133,29 @@ data class AppSettings(
     fun toMap() = mapOf(
         "themeMode" to themeMode.key,
         "accent" to accent.key,
-        "reminderHour" to reminderHour.toString(),
+        "background" to background.key,
+        "reminderHour" to (reminderTimes.firstOrNull()?.hour ?: reminderHour).toString(),
+        "reminderTimes" to reminderTimes.joinToString(",") { "%02d:%02d".format(it.hour, it.minute) },
         "notificationsEnabled" to notificationsEnabled.toString(),
         "hasOnboarded" to hasOnboarded.toString(),
         "hasRealData" to hasRealData.toString(),
     )
 
     companion object {
+        const val MAX_REMINDERS = 6
+
+        fun parseTimes(value: String?): List<java.time.LocalTime>? = value?.split(",")
+            ?.mapNotNull { runCatching { java.time.LocalTime.parse(it.trim()) }.getOrNull() }
+            ?.distinct()?.sorted()?.take(MAX_REMINDERS)
+
         fun fromMap(rows: Map<String, String>) = AppSettings(
             themeMode = ThemeMode.from(rows["themeMode"]),
             accent = AccentKey.from(rows["accent"]),
+            background = BackgroundKey.from(rows["background"]),
             reminderHour = rows["reminderHour"]?.toIntOrNull() ?: 20,
+            // Before 3.2 there was one reminder hour.
+            reminderTimes = parseTimes(rows["reminderTimes"])
+                ?: listOf(java.time.LocalTime.of((rows["reminderHour"]?.toIntOrNull() ?: 20).coerceIn(0, 23), 0)),
             notificationsEnabled = rows["notificationsEnabled"]?.let { it == "true" } ?: true,
             hasOnboarded = rows["hasOnboarded"] == "true",
             hasRealData = rows["hasRealData"] == "true",

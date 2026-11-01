@@ -200,7 +200,7 @@ fun BottomNav(current: Screen, onSelect: (Screen) -> Unit, modifier: Modifier = 
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp))
-            .background(if (p.dark) Color(0xEB252815) else p.surfaceContainerLow.copy(alpha = 0.96f))
+            .background(p.surfaceContainerLow.copy(alpha = if (p.dark) 0.94f else 0.96f))
             .navigationBarsPadding()
             .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
         horizontalArrangement = Arrangement.SpaceAround,
@@ -225,7 +225,7 @@ fun BottomNav(current: Screen, onSelect: (Screen) -> Unit, modifier: Modifier = 
 
 /** A small, dismissable card that offers one tap to connect something. */
 @Composable
-fun ConnectCard(icon: ImageVector, title: String, body: String, action: String, onAction: () -> Unit, onDismiss: (() -> Unit)? = null) {
+fun ConnectCard(icon: ImageVector, title: String, body: String, action: String, onAction: () -> Unit, onDismiss: (() -> Unit)? = null, link: Pair<String, () -> Unit>? = null) {
     val p = LocalPalette.current
     BCard {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -243,6 +243,9 @@ fun ConnectCard(icon: ImageVector, title: String, body: String, action: String, 
                 BText("Not now", p.onSurfaceVariant, 14.sp, FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable(onClick = onDismiss).padding(12.dp))
             }
         }
+        if (link != null) {
+            BText(link.first, p.primary, 13.sp, FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable(onClick = link.second).padding(vertical = 4.dp))
+        }
     }
 }
 
@@ -255,3 +258,19 @@ fun Pill(text: String, fg: Color, bg: Color) {
 
 @Composable
 fun VSpace(h: Dp) = Spacer(Modifier.height(h))
+
+/** A study behind a piece of advice: what it found, who and where, and a tap to read it. */
+@Composable
+fun PaperLink(paper: com.d_ave.bowels.domain.Paper) {
+    val p = LocalPalette.current
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surfaceContainerLow)
+            .clickable { runCatching { uri.openUri(paper.url) } }.padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        BText("RESEARCH", p.tertiary, 10.sp, FontWeight.Bold, letterSpacing = 1.sp)
+        BText(paper.finding, p.onSurface, 13.sp, lineHeight = 18.sp)
+        BText("${paper.citation} Tap to read.", p.onSurfaceVariant, 11.sp, FontWeight.Medium, lineHeight = 15.sp)
+    }
+}

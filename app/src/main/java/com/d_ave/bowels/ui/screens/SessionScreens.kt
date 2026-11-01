@@ -44,6 +44,8 @@ import com.d_ave.bowels.data.DailyHealthInput
 import com.d_ave.bowels.data.SessionDraft
 import com.d_ave.bowels.data.SessionKind
 import com.d_ave.bowels.data.Vitals
+import com.d_ave.bowels.domain.healthLabel
+import com.d_ave.bowels.domain.healthOptions
 import com.d_ave.bowels.domain.stoolTypeMeta
 import com.d_ave.bowels.shared.VitalsKeys
 import com.d_ave.bowels.ui.Connections
@@ -132,7 +134,6 @@ class QuestionActions(
 fun QuestionsScreen(draft: SessionDraft, health: DailyHealthInput, filledToday: Boolean, connections: Connections, actions: QuestionActions) {
     val p = LocalPalette.current
     var localHealth by remember { mutableStateOf(health) }
-    var askHealth by remember { mutableStateOf(false) }
 
     ScreenColumn {
         SectionTitle("Session complete", "Duration ${draft.durationSeconds / 60}:${"%02d".format(draft.durationSeconds % 60)}")
@@ -170,30 +171,44 @@ fun QuestionsScreen(draft: SessionDraft, health: DailyHealthInput, filledToday: 
 
         VitalsCard(draft.vitals, connections, actions)
 
-        BCard(Modifier.fillMaxWidth()) {
-            BText("Quick Health Check", p.primary, 18.sp, FontWeight.Bold)
-            BText(if (filledToday) "Already filled today ✓" else "Help us provide better insights", p.onSurfaceVariant, 13.sp)
-            FieldLabel("Last Night's Sleep")
-            ChipRow(listOf("Poor", "Fair", "Great"), { localHealth.sleep == it }) { localHealth = localHealth.copy(sleep = it) }
-            FieldLabel("Today's Fiber Intake")
-            ChipRow(listOf("Low", "Medium", "High"), { localHealth.fiber == it }) { localHealth = localHealth.copy(fiber = it) }
-            FieldLabel("Water Intake Today")
-            ChipRow(listOf("Low", "Okay", "Great"), { localHealth.water == it }) { localHealth = localHealth.copy(water = it) }
-        }
+        HealthCheckCard(localHealth, filledToday, startOpen = !filledToday) { localHealth = it }
 
         GradientButton("Save to Journal", Icons.Filled.Save) {
-            if (filledToday) actions.save(if (localHealth != health) localHealth else null) else askHealth = true
+            // The day's check is part of finishing a session; once it's in, only changes are saved.
+            actions.save(if (!filledToday || localHealth != health) localHealth else null)
         }
     }
+}
 
-    if (askHealth) {
-        AlertDialog(
-            onDismissRequest = { askHealth = false },
-            title = { BText("Daily Health Check", p.onSurface, 20.sp, FontWeight.Bold) },
-            text = { BText("Have you updated your daily health check (sleep, fiber, water)?", p.onSurfaceVariant) },
-            confirmButton = { TextButton(onClick = { askHealth = false; actions.save(localHealth) }) { BText("Yes, Save All", p.primary, weight = FontWeight.Bold) } },
-            dismissButton = { TextButton(onClick = { askHealth = false; actions.save(null) }) { BText("Skip for Now", p.onSurfaceVariant, weight = FontWeight.Bold) } },
+/**
+ * The full daily check (water, fiber, meals, stress, sleep, exercise, caffeine, alcohol,
+ * medication, mood). Shown open after a session until today's is in, then folded to one line.
+ */
+@Composable
+fun HealthCheckCard(health: DailyHealthInput, filledToday: Boolean, startOpen: Boolean, onChange: (DailyHealthInput) -> Unit) {
+    val p = LocalPalette.current
+    var open by rememberSaveable { mutableStateOf(startOpen) }
+    BCard(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            BText("Daily Health Check", p.primary, 18.sp, FontWeight.Bold, modifier = Modifier.weight(1f))
+            if (filledToday) BText("Saved today ✓", p.onSurfaceVariant, 12.sp, FontWeight.Bold)
+        }
+        BText(
+            if (filledToday) "Change anything that's different now." else "Ten taps, filled in from last time. It's what lets Bowels link your habits to your stools.",
+            p.onSurfaceVariant, 13.sp, lineHeight = 18.sp,
         )
+        if (open) {
+            healthOptions.forEach { (field, options) ->
+                FieldLabel(healthLabel(field))
+                ChipRow(options, { health[field] == it }) { onChange(health.with(field, it)) }
+            }
+        } else {
+            BText(
+                healthOptions.joinToString("  ·  ") { (field, _) -> health[field] },
+                p.onSurface, 13.sp, lineHeight = 19.sp,
+            )
+            BText("Edit", p.primary, 14.sp, FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { open = true }.padding(vertical = 4.dp))
+        }
     }
 }
 

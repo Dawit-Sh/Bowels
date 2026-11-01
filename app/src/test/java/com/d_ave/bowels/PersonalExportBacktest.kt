@@ -68,6 +68,14 @@ class PersonalExportBacktest {
             val health = archive.dailyHealth.filter { it.day <= at.atZone(zone).toLocalDate().toString() }.sortedByDescending { it.day }
             println("${at.atZone(zone).toLocalDate()}: " + Analytics.insights(sofar, health, at).joinToString(" | ") { it.title })
         }
+        // The forecast model: walk forward through the history, a self-check at the end of each month.
+        visits.groupBy { it.session.startTime.atZone(zone).let { z -> z.year * 100 + z.monthValue } }.values.forEach { month ->
+            val at = month.last().session.endTime.plusSeconds(3600).atZone(zone)
+            val sofar = all.filter { it.session.startTime <= at.toInstant() }
+            val health = archive.dailyHealth.filter { it.day <= at.toLocalDate().toString() }.sortedByDescending { it.day }
+            val f = com.d_ave.bowels.domain.ForecastModel.forecast(sofar, health, at) ?: return@forEach
+            println("forecast ${at.toLocalDate()}: ${f.outlook} ${f.chance.mapValues { (it.value * 100).toInt() }} right ${f.hits}/${f.checked} (usual-guess ${f.baselineHits}) learned ${f.daysLearned} days; drivers ${f.drivers.joinToString { it.text + "->" + it.towards }}")
+        }
         assertTrue("within 1 h ${within(60)}%", within(60) >= 55)
     }
 }

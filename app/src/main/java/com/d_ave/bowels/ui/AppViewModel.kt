@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.d_ave.bowels.BowelsApp
 import com.d_ave.bowels.data.AccentKey
 import com.d_ave.bowels.data.AppSettings
+import com.d_ave.bowels.data.BackgroundKey
 import com.d_ave.bowels.data.DailyHealthInput
 import com.d_ave.bowels.data.DailyHealthRecord
 import com.d_ave.bowels.data.ImportSummary
@@ -19,16 +20,20 @@ import com.d_ave.bowels.data.today
 import com.d_ave.bowels.domain.Analytics
 import com.d_ave.bowels.domain.AnalyticsSummary
 import com.d_ave.bowels.domain.DemoData
+import com.d_ave.bowels.domain.PatternAnalysis
 import com.d_ave.bowels.domain.WeeklyWrappedSummary
 import com.d_ave.bowels.health.HealthConnectManager
 import com.d_ave.bowels.notify.Notifications
 import com.d_ave.bowels.shared.VitalsKeys
 import com.d_ave.bowels.wear.WatchConnector
+import com.d_ave.bowels.widget.BowelsWidgets
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,6 +52,9 @@ data class UiState(
     val draft: SessionDraft = SessionDraft(),
     val usingDemo: Boolean = true,
     val connections: Connections = Connections(),
+    val sessionDetail: com.d_ave.bowels.domain.SessionDetail? = null,
+    val guidance: List<com.d_ave.bowels.domain.Advice> = emptyList(),
+    val achievements: List<com.d_ave.bowels.domain.AchievementProgress> = emptyList(),
 ) {
     val latestHealth: DailyHealthInput get() = dailyHealth.firstOrNull()?.toInput() ?: DailyHealthInput()
     val filledHealthToday: Boolean get() = dailyHealth.firstOrNull()?.day == today().toString()
@@ -63,9 +71,10 @@ data class Connections(
     val watch: WatchConnector.State = WatchConnector.State.NoWatch,
     val watchPromptDismissed: Boolean = false,
     val fetchingVitals: Boolean = false,
+    val checkingWatch: Boolean = false,
 )
 
-private data class Local(val screen: Screen?, val draft: SessionDraft, val connections: Connections)
+private data class Local(val screen: Screen?, val draft: SessionDraft, val connections: Connections, val selectedSession: Long? = null)
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as BowelsApp
@@ -104,8 +113,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             draft = l.draft,
             usingDemo = demo,
             connections = l.connections,
+            achievements = if (l.screen == Screen.Badges) com.d_ave.bowels.domain.Achievements.progress(sessions, health) else emptyList(),
+            guidance = if (l.screen == Screen.Health) com.d_ave.bowels.domain.Guidance.forYou(sessions, health, PatternAnalysis.build(sessions)) else emptyList(),
+            sessionDetail = l.selectedSession?.let { id ->
+                sessions.firstOrNull { it.id == id }?.let { com.d_ave.bowels.domain.SessionDetails.build(it, sessions, health) }
+            },
         )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
+    }.flowOn(Dispatchers.Default) // the forecast model trains here; keep it off the main thread
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
     init {
         viewModelScope.launch {
@@ -115,11 +130,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun setDraft(draft: SessionDraft) {
+        val wasRunning = local.value.draft.isRunning
         prefs.activeDraft = draft
         local.update { it.copy(draft = draft) }
+        // The session widget shows Start or Finish.
+        if (wasRunning != draft.isRunning) app.appScope.launch { BowelsWidgets.refresh(app) }
     }
 
     fun setScreen(screen: Screen) = local.update { it.copy(screen = screen) }
+
+    fun openSession(id: Long) = local.update { it.copy(screen = Screen.Session, selectedSession = id) }
 
     /** Called with the destination a notification carries (see Notifications.openIntent). */
     fun openDestination(destination: String?) {
@@ -138,6 +158,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             if (state.value.draft.isRunning) finishSession() else setScreen(Screen.Active)
             return
         }
+        if (destination == Notifications.DESTINATION_START) {
+            if (state.value.draft.isRunning) setScreen(Screen.Active) else startSession()
+            return
+        }
         val screen = runCatching { Screen.valueOf(destination) }.getOrNull() ?: return
         // A notification can arrive before onboarding is finished; the weekly report still opens.
         setScreen(screen)
@@ -149,7 +173,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val hc = app.healthConnect
             val status = hc.status()
             val granted = status == HealthConnectManager.Status.Available && hc.hasAnyPermission()
-            val watch = app.watch.state()
+            val watch = app.watch.state(prefs.knownWatches)
             local.update { it.copy(connections = it.connections.copy(healthConnect = status, healthConnectGranted = granted, watch = watch)) }
             if (granted) app.enrichRecentVitals()
             val draft = state.value.draft
@@ -162,6 +186,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         local.update { it.copy(connections = it.connections.copy(watchPromptDismissed = true)) }
     }
 
+    /** "It's already on my watch": trust it, and stop offering the install. */
+    fun markWatchInstalled() {
+        val watch = state.value.connections.watch as? WatchConnector.State.NeedsInstall ?: return
+        prefs.knownWatches = prefs.knownWatches + watch.nodeId
+        local.update { it.copy(connections = it.connections.copy(watch = WatchConnector.State.Ready(watch.name))) }
+    }
+
+    /** Looks for the watch again, for the "Check again" button. */
+    fun recheckWatch() {
+        viewModelScope.launch {
+            local.update { it.copy(connections = it.connections.copy(checkingWatch = true)) }
+            val watch = app.watch.state(prefs.knownWatches)
+            local.update { it.copy(connections = it.connections.copy(watch = watch, checkingWatch = false)) }
+        }
+    }
+
     fun installOnWatch() {
         val watch = state.value.connections.watch as? WatchConnector.State.NeedsInstall ?: return
         viewModelScope.launch { app.watch.openInstallOnWatch(watch.nodeId) }
@@ -169,7 +209,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun persistSettings(next: AppSettings) {
         repository.saveSettings(next)
-        Notifications.scheduleReminders(app, next.reminderHour, next.notificationsEnabled)
+        Notifications.scheduleReminders(app, next.reminderTimes, next.notificationsEnabled)
     }
 
     fun startSession() {
@@ -274,7 +314,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setThemeMode(mode: ThemeMode) = updateSettings { it.copy(themeMode = mode) }
     fun setAccent(accent: AccentKey) = updateSettings { it.copy(accent = accent) }
-    fun setReminderHour(hour: Int) = updateSettings { it.copy(reminderHour = hour) }
+    fun setBackground(background: BackgroundKey) = updateSettings { it.copy(background = background) }
+    fun setReminderTimes(times: List<java.time.LocalTime>) =
+        updateSettings { it.copy(reminderTimes = times.distinct().sorted().take(AppSettings.MAX_REMINDERS)) }
+    fun setRemindersOn(on: Boolean) = updateSettings { it.copy(notificationsEnabled = on) }
 
     fun completeOnboarding() {
         viewModelScope.launch {

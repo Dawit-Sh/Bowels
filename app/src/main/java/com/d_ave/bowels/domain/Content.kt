@@ -20,9 +20,13 @@ data class Milestone(val days: Int, val title: String, val body: String, val ton
 
 val milestones = listOf(
     Milestone(1, "First Rhythm", "The beginning of a conscious path to harmony.", MilestoneTone.Primary),
+    Milestone(3, "Finding Your Feet", "Three days of listening. The habit is taking root.", MilestoneTone.Secondary),
     Milestone(7, "Steady Flow", "Finding balance through consistency and care.", MilestoneTone.Secondary),
+    Milestone(14, "Two Weeks Strong", "Enough days for your first real patterns to show.", MilestoneTone.Primary),
     Milestone(30, "Deep Connection", "Listening to the internal whispers of the body.", MilestoneTone.Locked),
+    Milestone(60, "Second Nature", "Two months in. Logging is just part of the day now.", MilestoneTone.Locked),
     Milestone(100, "Master of Self", "Complete alignment of mind, habit, and health.", MilestoneTone.Locked),
+    Milestone(180, "Half a Year", "Six months of knowing your body a little better.", MilestoneTone.Locked),
 )
 
 val finalMilestone = Milestone(365, "Eternal Sanctuary", "The ultimate milestone. A year of dedicated wellness and listening to your inner rhythm.", MilestoneTone.Locked)
@@ -42,6 +46,13 @@ val healthOptions: List<Pair<String, List<String>>> = listOf(
     "mood" to listOf("Happy", "Neutral", "Sad", "Anxious", "Stressed"),
 )
 
+/** What each daily check question is called on screen. */
+fun healthLabel(field: String) = when (field) {
+    "sleep" -> "Last night's sleep"
+    "meals" -> "Meals today"
+    else -> field.replaceFirstChar { it.uppercase() }
+}
+
 data class HealthTip(val id: String, val title: String, val summary: String, val body: String)
 
 val healthInfo = listOf(
@@ -60,5 +71,8 @@ val healthInfo = listOf(
     HealthTip("red-flags", "When to See a Doctor", "Certain symptoms require professional medical evaluation.", "Seek medical attention for: persistent blood in stool, unexplained weight loss, severe abdominal pain, chronic diarrhea or constipation lasting 2+ weeks, black or tarry stools, or sudden changes in bowel habits after age 50."),
     HealthTip("bristol-scale", "Understanding the Bristol Stool Scale", "Types 3-4 are considered ideal, indicating healthy transit time.", "Type 1-2 suggests constipation (slow transit). Type 6-7 indicates diarrhea (too fast transit). Consistency matters more than frequency. Normal range is 3 times daily to 3 times weekly."),
     HealthTip("food-triggers", "Identifying Food Triggers", "Common trigger foods vary by individual but patterns often emerge.", "Common triggers include: dairy (lactose intolerance), gluten (celiac or sensitivity), FODMAPs (fermentable carbs), spicy foods, artificial sweeteners, and high-fat foods. Keep a food diary to identify your personal triggers."),
+    HealthTip("posture", "Posture Helps", "Raising your knees above your hips makes it easier to go.", "Sitting straight on a toilet keeps a kink in the last part of the bowel. A small footstool (15-20 cm) under your feet, leaning forward with elbows on knees, straightens it, so it takes less time and less straining."),
+    HealthTip("phone", "Leave the Phone Outside", "Scrolling turns a 5-minute visit into 15.", "Long sittings, not the visit itself, put pressure on the veins around the anus. If nothing happens within about 5 minutes, get up and come back when the urge returns."),
+    HealthTip("fruit", "Fruit That Helps", "Kiwifruit and prunes are among the best-studied foods for regularity.", "Two green kiwifruit a day, or about 50 g of prunes twice a day, helped constipation about as much as a fiber supplement in trials, with less bloating for kiwifruit."),
     HealthTip("mindful-eating", "Mindful Eating Practices", "How you eat is as important as what you eat for digestive health.", "Chew thoroughly (20-30 times per bite), eat slowly, avoid distractions while eating, and don't eat when stressed. Proper chewing releases digestive enzymes and reduces gas and bloating."),
 )
