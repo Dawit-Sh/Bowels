@@ -34,9 +34,6 @@ class Prefs(private val context: Context) {
         get() = prefs.getStringSet(KEY_ACHIEVEMENTS, emptySet()).orEmpty()
         set(value) = prefs.edit().putStringSet(KEY_ACHIEVEMENTS, value).apply()
 
-    var healthConnectAsked: Boolean
-        get() = prefs.getBoolean(KEY_HC_ASKED, false)
-        set(value) = prefs.edit().putBoolean(KEY_HC_ASKED, value).apply()
 
     /**
      * Brings over what the React Native build kept in AsyncStorage (its own SQLite file,
@@ -65,41 +62,26 @@ class Prefs(private val context: Context) {
     }
 
     private fun draftToJson(d: SessionDraft) = JSONObject().apply {
-        put("kind", d.kind.key)
+        put("kind", "bowel")
         put("startTime", d.startTime?.toIsoString())
         put("endTime", d.endTime?.toIsoString())
         put("durationSeconds", d.durationSeconds)
-        put("urineUrgency", d.urineUrgency)
-        put("urineColor", d.urineColor)
         put("stoolType", d.stoolType)
         put("pain", d.pain)
         put("blood", d.blood)
-        put("urgency", d.urgency)
-        put("completion", d.completion)
-        put("adaptiveTags", JSONArray(d.adaptiveTags))
-        put("vitals", JSONObject(d.vitals.toAnswers()))
     }
 
-    // Also reads the Expo draft, which has the same field names.
+    // Also reads the Expo draft and older drafts, which have the same field names (and more, now left out).
     private fun draftFromJson(j: JSONObject): SessionDraft {
         fun str(key: String) = if (j.isNull(key)) null else j.optString(key).takeIf { it.isNotEmpty() }
         fun int(key: String) = if (j.isNull(key) || !j.has(key)) null else j.optInt(key)
-        val tags = j.optJSONArray("adaptiveTags")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
-        val vitals = j.optJSONObject("vitals")?.let { v -> Vitals.fromAnswers(v.keys().asSequence().associateWith { v.getString(it) }) } ?: Vitals()
         return SessionDraft(
-            kind = SessionKind.from(str("kind")),
             startTime = parseInstant(str("startTime")),
             endTime = parseInstant(str("endTime")),
             durationSeconds = j.optLong("durationSeconds", 0),
-            urineUrgency = str("urineUrgency"),
-            urineColor = str("urineColor"),
-            stoolType = int("stoolType"),
-            pain = str("pain"),
-            blood = if (j.isNull("blood") || !j.has("blood")) null else j.optBoolean("blood"),
-            urgency = int("urgency"),
-            completion = str("completion"),
-            adaptiveTags = tags,
-            vitals = vitals,
+            stoolType = int("stoolType") ?: 4,
+            pain = str("pain") ?: "none",
+            blood = if (j.isNull("blood") || !j.has("blood")) false else j.optBoolean("blood"),
         )
     }
 
@@ -108,7 +90,6 @@ class Prefs(private val context: Context) {
         const val KEY_MILESTONES = "unlocked_milestones"
         const val KEY_MIGRATED = "migrated_async_storage"
         const val KEY_WATCH_PROMPT = "watch_prompt_dismissed"
-        const val KEY_HC_ASKED = "health_connect_asked"
         const val KEY_KNOWN_WATCHES = "known_watches"
         const val KEY_ACHIEVEMENTS = "unlocked_achievements"
         const val OLD_DRAFT = "bowels-active-draft"

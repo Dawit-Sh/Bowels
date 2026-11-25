@@ -7,24 +7,18 @@ import com.d_ave.bowels.BowelsApp
 import com.d_ave.bowels.data.AccentKey
 import com.d_ave.bowels.data.AppSettings
 import com.d_ave.bowels.data.BackgroundKey
-import com.d_ave.bowels.data.DailyHealthInput
-import com.d_ave.bowels.data.DailyHealthRecord
 import com.d_ave.bowels.data.ImportSummary
 import com.d_ave.bowels.data.InsightItem
 import com.d_ave.bowels.data.Screen
 import com.d_ave.bowels.data.SessionDraft
-import com.d_ave.bowels.data.SessionKind
 import com.d_ave.bowels.data.SessionWithAnswers
 import com.d_ave.bowels.data.ThemeMode
-import com.d_ave.bowels.data.today
 import com.d_ave.bowels.domain.Analytics
 import com.d_ave.bowels.domain.AnalyticsSummary
 import com.d_ave.bowels.domain.DemoData
 import com.d_ave.bowels.domain.PatternAnalysis
 import com.d_ave.bowels.domain.WeeklyWrappedSummary
-import com.d_ave.bowels.health.HealthConnectManager
 import com.d_ave.bowels.notify.Notifications
-import com.d_ave.bowels.shared.VitalsKeys
 import com.d_ave.bowels.wear.WatchConnector
 import com.d_ave.bowels.widget.BowelsWidgets
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +38,6 @@ data class UiState(
     val loading: Boolean = true,
     val screen: Screen = Screen.Home,
     val sessions: List<SessionWithAnswers> = emptyList(),
-    val dailyHealth: List<DailyHealthRecord> = emptyList(),
     val settings: AppSettings = AppSettings(),
     val analytics: AnalyticsSummary? = null,
     val weekly: WeeklyWrappedSummary? = null,
@@ -55,22 +48,12 @@ data class UiState(
     val sessionDetail: com.d_ave.bowels.domain.SessionDetail? = null,
     val guidance: List<com.d_ave.bowels.domain.Advice> = emptyList(),
     val achievements: List<com.d_ave.bowels.domain.AchievementProgress> = emptyList(),
-) {
-    val latestHealth: DailyHealthInput get() = dailyHealth.firstOrNull()?.toInput() ?: DailyHealthInput()
-    val filledHealthToday: Boolean get() = dailyHealth.firstOrNull()?.day == today().toString()
+)
 
-    /** Your own last check-in for the questions screen; demo answers must never pass as yours. */
-    val ownHealth: DailyHealthInput get() = if (usingDemo) DailyHealthInput() else latestHealth
-    val ownFilledToday: Boolean get() = !usingDemo && filledHealthToday
-}
-
-/** Health Connect and watch status, so screens can offer one-tap fixes instead of sending people to settings. */
+/** Watch status, so screens can offer one-tap fixes instead of sending people to settings. */
 data class Connections(
-    val healthConnect: HealthConnectManager.Status = HealthConnectManager.Status.Unsupported,
-    val healthConnectGranted: Boolean = false,
     val watch: WatchConnector.State = WatchConnector.State.NoWatch,
     val watchPromptDismissed: Boolean = false,
-    val fetchingVitals: Boolean = false,
     val checkingWatch: Boolean = false,
 )
 
@@ -100,26 +83,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (data == null) return@combine UiState(loading = true, draft = l.draft)
         val demo = !data.settings.hasRealData
         val sessions = if (demo) DemoData.sessions() else data.sessions
-        val health = if (demo) DemoData.dailyHealth() else data.dailyHealth
         UiState(
             loading = false,
             screen = l.screen ?: if (data.settings.hasOnboarded) Screen.Home else Screen.Onboarding,
             sessions = sessions,
-            dailyHealth = health,
             settings = data.settings,
-            analytics = Analytics.build(sessions, health),
+            analytics = Analytics.build(sessions),
             weekly = Analytics.weeklyWrapped(sessions),
-            insights = Analytics.insights(sessions, health),
+            insights = Analytics.insights(sessions),
             draft = l.draft,
             usingDemo = demo,
             connections = l.connections,
-            achievements = if (l.screen == Screen.Badges) com.d_ave.bowels.domain.Achievements.progress(sessions, health) else emptyList(),
-            guidance = if (l.screen == Screen.Health) com.d_ave.bowels.domain.Guidance.forYou(sessions, health, PatternAnalysis.build(sessions)) else emptyList(),
+            achievements = if (l.screen == Screen.Badges) com.d_ave.bowels.domain.Achievements.progress(sessions) else emptyList(),
+            guidance = if (l.screen == Screen.Health) com.d_ave.bowels.domain.Guidance.forYou(sessions, PatternAnalysis.build(sessions)) else emptyList(),
             sessionDetail = l.selectedSession?.let { id ->
-                sessions.firstOrNull { it.id == id }?.let { com.d_ave.bowels.domain.SessionDetails.build(it, sessions, health) }
+                sessions.firstOrNull { it.id == id }?.let { com.d_ave.bowels.domain.SessionDetails.build(it, sessions) }
             },
         )
-    }.flowOn(Dispatchers.Default) // the forecast model trains here; keep it off the main thread
+    }.flowOn(Dispatchers.Default) // the rhythm model runs here; keep it off the main thread
         .stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
     init {
@@ -167,15 +148,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         setScreen(screen)
     }
 
-    /** Re-checks Health Connect and the watch. Called whenever the app comes to the front. */
+    /** Re-checks the watch. Called whenever the app comes to the front. */
     fun refreshConnections() {
         viewModelScope.launch {
-            val hc = app.healthConnect
-            val status = hc.status()
-            val granted = status == HealthConnectManager.Status.Available && hc.hasAnyPermission()
             val watch = app.watch.state(prefs.knownWatches)
-            local.update { it.copy(connections = it.connections.copy(healthConnect = status, healthConnectGranted = granted, watch = watch)) }
-            if (granted) app.enrichRecentVitals()
+            local.update { it.copy(connections = it.connections.copy(watch = watch)) }
             val draft = state.value.draft
             if (draft.isRunning) Notifications.showSession(app, draft.startTime!!)
         }
@@ -226,7 +203,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         setDraft(current.copy(endTime = end, durationSeconds = maxOf(1, end.epochSecond - start.epochSecond)))
         Notifications.dismissSession(app)
         setScreen(Screen.Questions)
-        fetchDraftVitals()
     }
 
     fun cancelSession() {
@@ -235,67 +211,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         setScreen(Screen.Home)
     }
 
-    fun updateDraft(transform: (SessionDraft) -> SessionDraft) {
-        val next = transform(state.value.draft)
-        setDraft(next.copy(adaptiveTags = next.adaptiveTags.take(5)))
-    }
+    fun updateDraft(transform: (SessionDraft) -> SessionDraft) = setDraft(transform(state.value.draft))
 
-    fun setKind(kind: SessionKind) = updateDraft { d ->
-        val bowel = kind == SessionKind.Bowel
-        d.copy(
-            kind = kind,
-            stoolType = if (bowel) d.stoolType ?: 4 else null,
-            pain = if (bowel) d.pain ?: "none" else null,
-            blood = if (bowel) d.blood ?: false else null,
-            urgency = if (bowel) d.urgency ?: 3 else null,
-            completion = if (bowel) d.completion ?: "normal" else null,
-            urineUrgency = if (!bowel) d.urineUrgency ?: "medium" else null,
-            urineColor = if (!bowel) d.urineColor ?: "normal" else null,
-        )
-    }
-
-    /** Pulls heart rate and blood pressure for the session that just ended, without asking. */
-    fun fetchDraftVitals() {
-        val draft = state.value.draft
-        val start = draft.startTime ?: return
-        val end = draft.endTime ?: Instant.now()
-        viewModelScope.launch {
-            local.update { it.copy(connections = it.connections.copy(fetchingVitals = true)) }
-            val found = app.healthConnect.vitalsAround(start, end)
-            local.update { it.copy(connections = it.connections.copy(fetchingVitals = false)) }
-            if (!found.isEmpty) updateDraft { it.copy(vitals = it.vitals.mergeMissing(found)) }
-        }
-    }
-
-    fun setManualVitals(heartRate: Int?, systolic: Int?, diastolic: Int?) = updateDraft { d ->
-        var v = d.vitals
-        if (heartRate != null && heartRate != v.heartRateAvg) v = v.copy(heartRateAvg = heartRate, heartRateMin = null, heartRateMax = null, heartRateSource = VitalsKeys.SOURCE_MANUAL)
-        if (heartRate == null && v.heartRateSource == VitalsKeys.SOURCE_MANUAL) v = v.copy(heartRateAvg = null, heartRateSource = null)
-        v = if (systolic != null && diastolic != null) {
-            if (systolic != v.systolic || diastolic != v.diastolic) v.copy(systolic = systolic, diastolic = diastolic, bloodPressureTime = Instant.now(), bloodPressureSource = VitalsKeys.SOURCE_MANUAL) else v
-        } else if (v.bloodPressureSource == VitalsKeys.SOURCE_MANUAL) {
-            v.copy(systolic = null, diastolic = null, bloodPressureTime = null, bloodPressureSource = null)
-        } else v
-        d.copy(vitals = v)
-    }
-
-    fun saveQuestions(health: DailyHealthInput?) {
+    fun saveQuestions() {
         viewModelScope.launch {
             app.markHasRealData()
-            if (health != null) repository.upsertDailyHealth(today().toString(), health)
-            val draft = state.value.draft
-            val vitalsDone = !draft.vitals.isEmpty
-            val id = repository.saveSession(draft)
-            if (vitalsDone) repository.putAnswers(id, mapOf(VitalsKeys.VITALS_CHECKED to "true"))
+            repository.saveSession(state.value.draft)
             setDraft(SessionDraft())
             setScreen(Screen.History)
-        }
-    }
-
-    fun saveDailyHealth(input: DailyHealthInput) {
-        viewModelScope.launch {
-            app.markHasRealData()
-            repository.upsertDailyHealth(today().toString(), input)
         }
     }
 
@@ -304,7 +227,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             app.markHasRealData()
             val start = Instant.now()
             repository.saveSession(SessionDraft(stoolType = stoolType, startTime = start, endTime = start.plusSeconds(60), durationSeconds = 60))
-            app.enrichRecentVitals()
         }
     }
 
@@ -331,7 +253,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun importJson(content: String): ImportSummary {
         val summary = repository.importArchive(JSONObject(content))
         setScreen(Screen.History)
-        app.enrichRecentVitals()
         return summary
     }
 

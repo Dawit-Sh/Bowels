@@ -4,7 +4,7 @@
 
 ### A calm, local-first digestive health tracker for Android and Wear OS
 
-Log sessions in one tap, from your phone or your watch, see your heart rate and blood pressure from around each session, and build a steadier rhythm over time. No account, no cloud.
+Log sessions in one tap, from your phone or your watch: the stool type, any pain, any blood. Learn your rhythm and build a steadier one over time. No account, no cloud.
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7f52ff?style=for-the-badge)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-0f766e?style=for-the-badge)
@@ -12,11 +12,9 @@ Log sessions in one tap, from your phone or your watch, see your heart rate and 
 ![Local First](https://img.shields.io/badge/Data-Local_First-7c3aed?style=for-the-badge)
 
 <img src="docs/screenshots/phone-weekly-wrapped.png" width="200" alt="Weekly Wrapped" />
-<img src="docs/screenshots/phone-vitals.png" width="200" alt="Heart rate and blood pressure after a session" />
-<img src="docs/screenshots/phone-history.png" width="200" alt="History with vitals" />
+<img src="docs/screenshots/phone-history.png" width="200" alt="History" />
 <img src="docs/screenshots/phone-insights.png" width="200" alt="Insights" />
 
-<img src="docs/screenshots/watch-running.png" width="160" alt="Watch: live heart rate" />
 <img src="docs/screenshots/watch-questions.png" width="160" alt="Watch: one tap per question" />
 <img src="docs/screenshots/watch-saved.png" width="160" alt="Watch: saved, syncs later" />
 
@@ -29,22 +27,19 @@ Log sessions in one tap, from your phone or your watch, see your heart rate and 
 | | |
 |---|---|
 | **Quick Log** | Save a bowel entry in one tap, in the app or from the widget |
-| **Sessions** | Time a session, finish it from the app, the notification or the widget, answer a few questions and the daily health check |
-| **Wear OS watch** | Start and finish a session from your wrist when your phone is in another room. The watch measures your heart rate during the session and syncs to the phone by itself, even if the phone was out of range at the time |
-| **Heart rate and blood pressure** | Read from Health Connect (Samsung Health, Fitbit, Pixel Watch, Omron and other cuffs write there) for the time of each session, or typed in. Read-only |
-| **Daily health check** | Water, fiber, meals, stress, sleep, exercise, caffeine, alcohol, medication, mood, asked after each session and pre-filled from last time |
+| **Sessions** | Time a session, finish it from the app, the notification or the widget, then three taps: stool type, pain, blood |
+| **Wear OS watch** | Start and finish a session from your wrist when your phone is in another room. The same three taps, and it syncs to the phone by itself, even if the phone was out of range at the time |
 | **Next visit window** | Learns your usual times on the phone and shows when your next visit is likely, with how often that window held up for you |
-| **Tomorrow's outlook** | A small model trained on the phone from your own logs forecasts steady, looser or harder, and shows what's driving it |
-| **Insights** | Regularity score, time of day and weekday patterns, 8-week trends, symptoms, streaks, and changes measured against your own usual |
+| **Insights** | Regularity score, time of day and weekday patterns, 8-week trends, pain and blood, streaks, and changes measured against your own usual |
 | **Gut Practices** | Advice written from your logs, each with the studies behind it (checked on PubMed) |
-| **Session pages** | Tap any session in History to compare it with your usual and see that day's habits |
+| **Session pages** | Tap any session in History to compare it with your usual |
 | **Widgets** | Session (start, finish, quick log), Rhythm and Week |
 | **Themes** | 8 backgrounds (true black included), 11 accents, wallpaper colors on Android 12+ |
-| **Reminders** | As many as you want, at your times; skipped when the day is already logged |
+| **Reminders** | As many as you want, at your times; skipped when you've already logged a visit that day |
 | **Weekly Wrapped** | Your week as a story-sized image to share or save |
-| **Milestones and achievements** | Day milestones and 24 achievements to earn and share |
+| **Milestones and achievements** | Day milestones and 16 achievements to earn and share |
 | **Backups** | Export and import a JSON archive (2.x backups import too) |
-| **Your own dashboard** | Optional: send every session and daily check to a [Life Dashboard](https://github.com/owen282000/life-dashboard-stack) receiver on your own server, to see them next to your sleep, food and mood. Scan its pairing code once; it sends on its own whenever the phone can reach it |
+| **Your own dashboard** | Optional: send every session to a [Life Dashboard](https://github.com/owen282000/life-dashboard-stack) receiver on your own server, to see it next to your sleep, food and mood. Scan its pairing code once; it sends on its own whenever the phone can reach it |
 
 Everything is stored on the device. There is no account and no server, unless you connect your own dashboard.
 
@@ -60,7 +55,7 @@ Download `bowels-vX.Y.Z.apk` from the [latest release](https://github.com/Dawit-
 
 Updating from 2.x keeps all your data (sessions, health check-ins, milestones).
 
-On first launch, **Begin** asks for notifications and for Health Connect's read access to heart rate and blood pressure, in the app, through the system's own permission sheets. Nothing has to be set up in settings.
+On first launch, **Begin** asks for notifications, in the app, through the system's own permission sheet. Nothing has to be set up in settings.
 
 ### Watch (Wear OS 3 or newer)
 
@@ -93,7 +88,7 @@ Wear OS installs apps only from the Play Store, or from a computer over Wi-Fi wi
 
 Install the phone and watch APKs from the **same release**: they must be signed with the same key to find each other.
 
-When you start your first session on the watch, it asks for heart-rate access in the same tap. Sessions you log on the watch show "saved, syncs when your phone is near" and land in the phone app on their own.
+When you start your first session on the watch, it asks to show notifications in the same tap, so the running session shows on the watch face. Sessions you log on the watch show "saved, syncs when your phone is near" and land in the phone app on their own.
 
 Once Bowels is on the Play Store (an internal testing track is enough), the phone app shows **Install on watch** when it finds a paired watch without Bowels, and installing becomes one tap.
 
@@ -106,9 +101,8 @@ Once Bowels is on the Play Store (an internal testing track is enough), the phon
 |-- app/        Phone app (Jetpack Compose)
 |   |-- dashboard/  Optional sending to your own Life Dashboard receiver
 |   |-- data/       SQLite, repository, backups, local prefs
-|   |-- domain/     Rhythm (next-visit model), Forecast (on-device outlook model), analytics,
+|   |-- domain/     Rhythm (next-visit model), analytics,
 |   |               patterns, guidance and research, achievements, session details, content
-|   |-- health/     Health Connect reads
 |   |-- notify/     Reminders, weekly report, session and milestone notifications
 |   |-- share/      1080x1920 share images
 |   |-- wear/       Watch sync service and install prompt
@@ -119,11 +113,11 @@ Once Bowels is on the Play Store (an internal testing track is enough), the phon
 |-- docs/       GitHub Pages site and screenshots
 ```
 
-**Watch sync.** The watch saves each finished session as a Wearable Data Layer item (`/bowels/session/<id>`). Google Play services keeps it on the watch and delivers it whenever the phone is reachable. The phone's `WatchSyncService` saves it (de-duplicated by id), looks up blood pressure in Health Connect, then deletes the item, which tells the watch it's synced.
+**Watch sync.** The watch saves each finished session as a Wearable Data Layer item (`/bowels/session/<id>`). Google Play services keeps it on the watch and delivers it whenever the phone is reachable. The phone's `WatchSyncService` saves it (de-duplicated by id), then deletes the item, which tells the watch it's synced.
 
-**Vitals** are stored as ordinary session answers (`hr_avg`, `hr_min`, `hr_max`, `bp_systolic`, `bp_diastolic`, `bp_time` and their sources), so backups carry them with no format change. Watches and cuffs often sync to Health Connect late, so the app checks recent sessions again for a few hours.
+**Older data.** Before 3.4, Bowels also logged urine visits, urgency, completion, tags, heart rate and blood pressure, and a daily health check. Those stay readable: History, backups and the dashboard keep them, but nothing new asks for them.
 
-**Your own dashboard.** Off until you scan the pairing code on a Life Dashboard receiver's `/pair` page (Settings, Your Dashboard). Then each session goes as a `bowels_sessions` record and each daily check as a `bowels_daily_checks` record, signed with HMAC-SHA256 like the Life Dashboard apps' payloads. Their uuids come from the data (a session's kind and start, a check's day), so a reinstall or an import sends the same records again rather than new ones. The app remembers a fingerprint of what the receiver has and sends only what's new or changed: a few seconds after a change, when the app opens, and hourly. A server on a private address is only tried on a network with a route to it (your home Wi-Fi or a VPN), so nothing is lost while you're out. The pairing is kept in no-backup storage, so its secret never goes into a cloud backup.
+**Your own dashboard.** Off until you scan the pairing code on a Life Dashboard receiver's `/pair` page (Settings, Your Dashboard). Then each session goes as a `bowels_sessions` record (and each daily check from before 3.4 as a `bowels_daily_checks` record), signed with HMAC-SHA256 like the Life Dashboard apps' payloads. Their uuids come from the data (a session's kind and start, a check's day), so a reinstall or an import sends the same records again rather than new ones. The app remembers a fingerprint of what the receiver has and sends only what's new or changed: a few seconds after a change, when the app opens, and hourly. A server on a private address is only tried on a network with a route to it (your home Wi-Fi or a VPN), so nothing is lost while you're out. The pairing is kept in no-backup storage, so its secret never goes into a cloud backup.
 
 **Upgrading from 2.x.** The app opens the same SQLite file the Expo app used (`files/SQLite/bowels.db`) and brings over the running session and announced milestones from AsyncStorage.
 

@@ -113,7 +113,7 @@ class AppBehaviourTest {
     }
 
     @Test
-    fun `watch sessions are saved once with their heart rate`() = runBlocking {
+    fun `watch sessions are saved once, with stool type, pain and blood only`() = runBlocking {
         val payload = WatchSessionPayload(
             id = "watch-1", kind = "bowel", startTime = "2026-10-21T07:30:00.000Z", endTime = "2026-10-21T07:36:00.000Z",
             durationSeconds = 360, answers = mapOf("stool_type" to "4", "pain" to "none", "blood" to "false"),
@@ -125,10 +125,12 @@ class AppBehaviourTest {
         assertTrue(app.repository.saveWatchSession(roundTripped))
         assertFalse("a resend must not duplicate", app.repository.saveWatchSession(roundTripped))
         val saved = app.repository.data.value!!.sessions.single()
-        assertEquals(78, saved.vitals.heartRateAvg)
-        assertEquals(96, saved.vitals.heartRateMax)
-        assertEquals(VitalsKeys.SOURCE_WATCH, saved.vitals.heartRateSource)
         assertEquals(4, saved.stoolType)
+        assertEquals("none", saved.answers["pain"])
+        assertEquals("false", saved.answers["blood"])
+        // An older watch app still sends heart rate; Bowels no longer keeps it.
+        assertTrue(saved.vitals.isEmpty)
+        assertEquals("watch-1", saved.answers[VitalsKeys.WATCH_ID])
     }
 
     @Test

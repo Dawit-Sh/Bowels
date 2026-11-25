@@ -61,7 +61,8 @@ object DashboardRecords {
             a["blood"]?.let { json.put("blood", it == "true") }
             a["urgency"]?.toIntOrNull()?.let { json.put("urgency", it) }
             a["completion"]?.let { json.put("completion", it) }
-            json.put("tags", JSONArray(a["adaptive_tags"].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }))
+            // Older visits only: Bowels no longer asks for urgency, completion or tags.
+            a["adaptive_tags"]?.let { tags -> json.put("tags", JSONArray(tags.split(',').map { it.trim() }.filter { it.isNotEmpty() })) }
         } else {
             a["urine_urgency"]?.let { json.put("urine_urgency", it) }
             a["urine_color"]?.let { json.put("urine_color", it) }

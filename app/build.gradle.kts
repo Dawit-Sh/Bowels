@@ -86,7 +86,6 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
-    implementation(libs.health.connect)
     implementation(libs.glance.appwidget)
     implementation(libs.work.runtime)
     implementation(libs.play.services.code.scanner)

@@ -3,11 +3,8 @@ package com.d_ave.bowels.ui.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.ui.text.style.TextAlign
-import com.d_ave.bowels.domain.Forecast
-import com.d_ave.bowels.domain.Outlook
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import androidx.compose.foundation.clickable
@@ -32,7 +29,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.UploadFile
@@ -79,7 +75,7 @@ fun HistoryScreen(sessions: List<SessionWithAnswers>, onExport: () -> Unit, onIm
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             BCard(Modifier.weight(1f).heightIn(min = 240.dp)) {
                 BText("Export Data", p.onSurface, 20.sp, FontWeight.Bold)
-                BText("Save sessions, answers, vitals and health check-ins as a local archive.", p.onSurfaceVariant, lineHeight = 20.sp, modifier = Modifier.weight(1f))
+                BText("Save every session and its answers as a local archive.", p.onSurfaceVariant, lineHeight = 20.sp, modifier = Modifier.weight(1f))
                 GradientButton("Archive", Icons.Filled.Download, onClick = onExport)
             }
             BCard(Modifier.weight(1f).heightIn(min = 240.dp)) {
@@ -100,7 +96,6 @@ fun HistoryScreen(sessions: List<SessionWithAnswers>, onExport: () -> Unit, onIm
                             if (item.answers[VitalsKeys.WATCH_ID] != null) Icon(Icons.Filled.Watch, "Logged on watch", tint = p.outline, modifier = Modifier.size(14.dp))
                         }
                         BText(rowTime.format(item.session.startTime), p.onSurfaceVariant)
-                        vitalsLine(item)?.let { BText(it, p.secondary, 12.sp, FontWeight.Medium) }
                     }
                     item.stoolType?.let { BText(stoolTypeMeta[it]?.emoji.orEmpty(), p.onSurface, 18.sp, modifier = Modifier.padding(end = 10.dp)) }
                     BText("${(item.session.durationSeconds / 60.0).roundToInt()}m", p.primary, 18.sp, FontWeight.ExtraBold)
@@ -114,23 +109,12 @@ fun HistoryScreen(sessions: List<SessionWithAnswers>, onExport: () -> Unit, onIm
     }
 }
 
-private fun vitalsLine(item: SessionWithAnswers): String? {
-    val v = item.vitals
-    val parts = buildList {
-        v.heartRateAvg?.let { add("♥ $it bpm") }
-        if (v.hasBloodPressure) add("BP ${v.systolic}/${v.diastolic}")
-    }
-    return parts.takeIf { it.isNotEmpty() }?.joinToString("  ·  ")
-}
-
 @Composable
 fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>, onGuidance: () -> Unit = {}) {
     val p = LocalPalette.current
     val pat = analytics.patterns
     ScreenColumn {
         SectionTitle("Your patterns", "From what you've logged, measured against your own usual.")
-
-        analytics.forecast?.let { ForecastCard(it) }
 
         pat?.regularity?.let { score ->
             BCard(Modifier.fillMaxWidth()) {
@@ -234,24 +218,6 @@ fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>, on
             }
         }
 
-        val v = analytics.vitals
-        BCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.Favorite, null, tint = p.secondary)
-                BText("Heart & blood pressure", p.onSurface, 22.sp, FontWeight.Bold)
-            }
-            if (v.isEmpty) {
-                BText("No readings yet. Log a session on your watch, or connect Health Connect, and heart rate and blood pressure from around each session show up here.", p.onSurfaceVariant, lineHeight = 20.sp)
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    VitalTile("AVG HEART RATE", v.averageHeartRate?.let { "$it" } ?: "—", "bpm", Modifier.weight(1f))
-                    VitalTile("PEAK", v.peakHeartRate?.let { "$it" } ?: "—", "bpm", Modifier.weight(1f))
-                    VitalTile("LATEST BP", v.latestBloodPressure?.let { "${it.first}/${it.second}" } ?: "—", "mmHg", Modifier.weight(1.3f))
-                }
-                BText("${v.sessionsWithHeartRate} session${if (v.sessionsWithHeartRate == 1) "" else "s"} with heart rate, ${v.bloodPressureReadings} with blood pressure in the last 14 days.", p.onSurfaceVariant, 13.sp)
-            }
-        }
-
         BCard(Modifier.fillMaxWidth()) {
             BText("Bristol Distribution", p.onSurface, 22.sp, FontWeight.Bold)
             Row(Modifier.fillMaxWidth().heightIn(min = 180.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -266,11 +232,6 @@ fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>, on
             }
         }
 
-        BCard(Modifier.fillMaxWidth()) {
-            BText("Fiber Effect", p.onSurface, 22.sp, FontWeight.Bold)
-            BText(analytics.fiberCorrelationLabel, p.onSurfaceVariant, lineHeight = 20.sp)
-        }
-
         insights.forEach { item ->
             BCard(Modifier.fillMaxWidth()) {
                 val tone = when (item.severity) {
@@ -283,42 +244,6 @@ fun AnalyticsScreen(analytics: AnalyticsSummary, insights: List<InsightItem>, on
             }
         }
         SecondaryButton("What could help: Gut Practices", Icons.Filled.Spa, onClick = onGuidance)
-    }
-}
-
-/** Tomorrow's outlook from the on-device model, with what's driving it and how it has done. */
-@Composable
-fun ForecastCard(f: Forecast) {
-    val p = LocalPalette.current
-    BCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Filled.AutoAwesome, null, tint = p.tertiary)
-            BText("Tomorrow's outlook", p.onSurface, 22.sp, FontWeight.Bold)
-        }
-        val tone = when (f.outlook) { Outlook.Steady -> p.primary; Outlook.Looser -> p.secondary; Outlook.Harder -> p.tertiary }
-        BText(
-            when (f.outlook) {
-                Outlook.Steady -> "Likely steady"
-                Outlook.Looser -> "Leaning looser"
-                Outlook.Harder -> "Leaning harder"
-            },
-            tone, 26.sp, FontWeight.ExtraBold,
-        )
-        Outlook.entries.forEach { o -> Meter(o.label, ((f.chance[o] ?: 0.0) * 100).roundToInt(), suffix = "%") }
-        if (f.drivers.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                BText("WHAT'S PUSHING IT", p.primary, 10.sp, FontWeight.Bold, letterSpacing = 1.sp)
-                f.drivers.forEach { d -> BText("${d.text} → ${d.towards.label.lowercase()}", p.onSurface, 14.sp, lineHeight = 19.sp) }
-            }
-        }
-        BText(
-            buildString {
-                append("A small model trained on this phone from ${f.daysLearned} days of your logs, starting from what research says about water, fiber, stress, sleep, caffeine and alcohol.")
-                if (f.checked >= 5) append(" Checked on your last ${f.checked} days, it was right on ${f.hits}; guessing \"like usual\" would have got ${f.baselineHits}.")
-                if (!f.usedTodaysCheck) append(" Fill in today's health check to sharpen it.")
-            },
-            p.onSurfaceVariant, 12.sp, lineHeight = 17.sp,
-        )
     }
 }
 
@@ -363,16 +288,6 @@ private fun WeekBars(values: List<Double?>, label: (Double) -> String, max: Doub
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun VitalTile(label: String, value: String, unit: String, modifier: Modifier) {
-    val p = LocalPalette.current
-    Column(modifier.clip(RoundedCornerShape(20.dp)).background(p.surfaceContainerHigh).padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        BText(label, p.onSurfaceVariant, 10.sp, FontWeight.Bold, letterSpacing = 0.8.sp, maxLines = 1)
-        BText(value, p.primary, 22.sp, FontWeight.ExtraBold, maxLines = 1)
-        BText(unit, p.outline, 11.sp)
     }
 }
 

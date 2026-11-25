@@ -33,26 +33,6 @@ val finalMilestone = Milestone(365, "Eternal Sanctuary", "The ultimate milestone
 
 fun nextMilestone(progressDays: Int) = milestones.firstOrNull { progressDays < it.days } ?: finalMilestone
 
-val healthOptions: List<Pair<String, List<String>>> = listOf(
-    "water" to listOf("Low", "Okay", "Great"),
-    "fiber" to listOf("Low", "Medium", "High"),
-    "meals" to listOf("Light", "Balanced", "Heavy"),
-    "stress" to listOf("Low", "Medium", "High"),
-    "sleep" to listOf("Poor", "Fair", "Great"),
-    "exercise" to listOf("None", "Light", "Active"),
-    "caffeine" to listOf("None", "Low", "Medium", "High"),
-    "alcohol" to listOf("None", "Light", "Moderate", "Heavy"),
-    "medication" to listOf("None", "Prescribed", "OTC", "Both"),
-    "mood" to listOf("Happy", "Neutral", "Sad", "Anxious", "Stressed"),
-)
-
-/** What each daily check question is called on screen. */
-fun healthLabel(field: String) = when (field) {
-    "sleep" -> "Last night's sleep"
-    "meals" -> "Meals today"
-    else -> field.replaceFirstChar { it.uppercase() }
-}
-
 data class HealthTip(val id: String, val title: String, val summary: String, val body: String)
 
 val healthInfo = listOf(

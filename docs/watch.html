@@ -935,7 +935,7 @@
           </div>
           <h1>Put BOWELS <span class="accent">on your watch.</span></h1>
           <p class="hero-copy">
-            Log a session from your wrist while your phone stays in the other room. Your watch reads your heart rate the whole time and hands everything to your phone when they're back together.
+            Log a session from your wrist while your phone stays in the other room. Your watch keeps it and hands it to your phone when they're back together.
           </p>
           <div class="need-list" aria-label="What you need">
             <div class="need"><span class="need-icon" aria-hidden="true">⌚</span>A Wear OS 3+ watch (Galaxy Watch 4 or newer, Pixel Watch, and others)</div>
@@ -944,7 +944,7 @@
           </div>
         </div>
         <div class="hero-watch-wrap reveal">
-          <img class="hero-watch" src="./screenshots/watch-running.png" alt="BOWELS on a watch: a running session at 00:33 with a heart rate of 115 bpm">
+          <img class="hero-watch" src="./screenshots/watch-questions.png" alt="BOWELS on a watch asking how it looked, one tap per answer">
         </div>
       </div>
     </section>
@@ -1085,7 +1085,7 @@
               <span class="step-number">6</span>
               <h2>Tidy up and start</h2>
             </div>
-            <p>Turn <strong>ADB debugging</strong> off again; it uses battery. Then open BOWELS on the watch and tap start. The first time, it asks to read your heart rate. Allow it, and that's it.</p>
+            <p>Turn <strong>ADB debugging</strong> off again; it uses battery. Then open BOWELS on the watch and tap start. The first time, it asks to show notifications, so the running session sits on the watch face. Allow it, and that's it.</p>
             <div class="tip">Sessions you log on the watch show "saved · syncs when your phone is near" and appear in the phone app on their own.</div>
             <button class="done-toggle" type="button">Mark as done</button>
           </div>
@@ -1127,10 +1127,6 @@
             <summary>The watch logs sessions but nothing shows up on the phone</summary>
             <p>The phone and watch apps must come from the same release, so download both from the latest one. Also make sure the watch is paired with that phone in the Wear OS or Galaxy Wearable app. Sessions wait safely on the watch until the two can talk.</p>
           </details>
-          <details>
-            <summary>No heart rate on the watch</summary>
-            <p>BOWELS asks for heart-rate access the first time you start a session. If you said no, open Settings › Apps › BOWELS › Permissions on the watch and allow it. The timer works either way.</p>
-          </details>
         </div>
       </div>
     </section>
@@ -1139,18 +1135,17 @@
       <div class="finish-card reveal">
         <div class="eyebrow">You're set</div>
         <h2>This is what's on your wrist now.</h2>
-        <p>Start a session, watch your heart rate as you go, and answer a few taps at the end. Your phone gets everything the next time they're together.</p>
+        <p>Start a session, finish it when you're done, and answer three taps. Your phone gets everything the next time they're together.</p>
         <div class="wrist-gallery">
           <figure>
-            <div class="demo-watch" role="img" aria-label="A running session on the watch with a live timer and heart rate">
+            <div class="demo-watch" role="img" aria-label="A running session on the watch with a live timer">
               <span class="demo-clock" data-demo-clock>2:13</span>
               <div class="demo-running">
                 <span class="demo-timer" data-demo-timer>00:33</span>
-                <span class="demo-bpm"><span class="demo-heart" aria-hidden="true">♥</span> <span data-demo-bpm>115</span> bpm</span>
                 <span class="demo-buttons" aria-hidden="true"><span class="demo-btn demo-btn-x">✕</span><span class="demo-btn demo-btn-ok">✓</span></span>
               </div>
             </div>
-            <figcaption><strong>Live heart rate</strong>Timer and pulse, even with the screen off</figcaption>
+            <figcaption><strong>A timer on your wrist</strong>Also on the watch face, even with the screen off</figcaption>
           </figure>
           <figure>
             <div class="demo-watch demo-interactive" id="demo-quiz">
@@ -1158,7 +1153,6 @@
               <div class="demo-saved" id="demo-saved" hidden>
                 <span class="demo-check" aria-hidden="true">✓</span>
                 <strong>Saved</strong>
-                <span class="demo-bpm"><span class="demo-heart" aria-hidden="true">♥</span> avg 97 bpm</span>
                 <span class="demo-note">Syncs when your phone is near</span>
               </div>
             </div>
@@ -1166,7 +1160,7 @@
             <figcaption><strong>One tap per question</strong>Try it: this one works</figcaption>
           </figure>
           <figure>
-            <img src="./screenshots/watch-saved.png" alt="The watch showing Saved, average 97 bpm, syncs when your phone is near" loading="lazy">
+            <img src="./screenshots/watch-saved.png" alt="The watch showing Saved, syncs when your phone is near" loading="lazy">
             <figcaption><strong>Syncs on its own</strong>Waits on the watch until your phone is near</figcaption>
           </figure>
         </div>
@@ -1312,18 +1306,14 @@
   <script>
     // The two live watches at the bottom of the page.
     (function () {
-      // 1. A running session: the timer counts and the heart rate drifts like a real reading.
+      // 1. A running session: the timer counts.
       const timer = document.querySelector('[data-demo-timer]');
-      const bpm = document.querySelector('[data-demo-bpm]');
       const clock = document.querySelector('[data-demo-clock]');
       let seconds = 33;
-      let rate = 115;
       const pad = (n) => String(n).padStart(2, '0');
       setInterval(() => {
         seconds += 1;
         timer.textContent = pad(Math.floor(seconds / 60)) + ':' + pad(seconds % 60);
-        rate = Math.max(92, Math.min(124, rate + Math.round((Math.random() - 0.5) * 6)));
-        bpm.textContent = rate;
         const now = new Date();
         clock.textContent = now.getHours() % 12 || 12;
         clock.textContent += ':' + pad(now.getMinutes());

@@ -78,12 +78,10 @@ class ShareCards(private val context: Context) {
         centered(canvas, desc, bold, 28f, (if (p.dark) p.secondaryFixed else p.secondary).toArgb(), persona.top + 150f)
         y = persona.bottom + 28f
 
-        // Two tiles, or three when the watch measured heart rate.
-        val tiles = buildList {
-            add("AVG TIME" to "${max(0, (w.averageDurationSeconds / 60.0).toInt())}m")
-            add("COMMON" to (w.mostCommonStoolType?.let { stoolTypeMeta.getValue(it).let { m -> "${m.emoji} ${m.short}" } } ?: "—"))
-            w.averageHeartRate?.let { add("AVG HEART" to "$it bpm") }
-        }
+        val tiles = listOf(
+            "AVG TIME" to "${max(0, (w.averageDurationSeconds / 60.0).toInt())}m",
+            "COMMON" to (w.mostCommonStoolType?.let { stoolTypeMeta.getValue(it).let { m -> "${m.emoji} ${m.short}" } } ?: "—"),
+        )
         val gap = 28f
         val tileW = (width - 2 * margin - gap * (tiles.size - 1)) / tiles.size
         tiles.forEachIndexed { i, (title, value) ->

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -20,12 +19,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.d_ave.bowels.data.DailyHealthInput
 import com.d_ave.bowels.data.SessionKind
 import com.d_ave.bowels.domain.Research
 import com.d_ave.bowels.domain.SessionDetail
-import com.d_ave.bowels.domain.healthLabel
-import com.d_ave.bowels.domain.healthOptions
 import com.d_ave.bowels.domain.stoolTypeMeta
 import com.d_ave.bowels.shared.VitalsKeys
 import com.d_ave.bowels.ui.components.BCard
@@ -93,43 +89,6 @@ fun SessionDetailScreen(detail: SessionDetail) {
                 answers.forEach { (label, value) -> KeyValue(label, value) }
             }
         }
-
-        val v = s.vitals
-        if (!v.isEmpty) {
-            BCard(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(Icons.Filled.Favorite, null, tint = p.secondary)
-                    BText("Heart & blood pressure", p.onSurface, 20.sp, FontWeight.Bold)
-                }
-                v.heartRateAvg?.let { KeyValue("Heart rate", "$it bpm ${sourceLabel(v.heartRateSource)}".trim()) }
-                if (v.heartRateMin != null && v.heartRateMax != null) KeyValue("Range", "${v.heartRateMin}-${v.heartRateMax} bpm")
-                if (v.hasBloodPressure) KeyValue("Blood pressure", "${v.systolic}/${v.diastolic} mmHg ${sourceLabel(v.bloodPressureSource)}".trim())
-            }
-        }
-
-        if (detail.links.isNotEmpty()) {
-            BCard(Modifier.fillMaxWidth()) {
-                BText("What may have played a part", p.onSurface, 20.sp, FontWeight.Bold)
-                detail.links.forEach { BText(it, p.onSurface, 14.sp, lineHeight = 20.sp) }
-                BText("From your own history. A link isn't proof of cause, but it's worth noticing.", p.onSurfaceVariant, 12.sp, lineHeight = 17.sp)
-            }
-        }
-
-        HealthDay("That day's health check", detail.dayHealth)
-        HealthDay("The day before", detail.dayBeforeHealth)
-    }
-}
-
-@Composable
-private fun HealthDay(title: String, health: DailyHealthInput?) {
-    val p = LocalPalette.current
-    BCard(Modifier.fillMaxWidth()) {
-        BText(title, p.onSurface, 20.sp, FontWeight.Bold)
-        if (health == null) {
-            BText("Not filled in.", p.onSurfaceVariant, 14.sp)
-        } else {
-            healthOptions.forEach { (field, _) -> KeyValue(healthLabel(field), health[field]) }
-        }
     }
 }
 
@@ -143,15 +102,7 @@ private fun KeyValue(label: String, value: String) {
 }
 
 private fun answerRows(answers: Map<String, String>, bowel: Boolean): List<Pair<String, String>> = buildList {
-    fun cap(s: String) = s.replaceFirstChar { it.uppercase() }
-    if (bowel) {
-        answers["pain"]?.let { add("Pain" to cap(it)) }
-        answers["blood"]?.let { add("Blood" to if (it == "true") "Yes" else "No") }
-        answers["urgency"]?.let { add("Urgency" to "$it of 5") }
-        answers["completion"]?.let { add("Completion" to cap(it)) }
-        answers["adaptive_tags"]?.takeIf { it.isNotBlank() }?.let { add("Also" to it.split(",").joinToString(", ") { t -> cap(t.trim()) }) }
-    } else {
-        answers["urine_urgency"]?.let { add("Urgency" to cap(it)) }
-        answers["urine_color"]?.let { add("Color" to cap(it)) }
-    }
+    if (!bowel) return@buildList
+    answers["pain"]?.let { add("Pain" to it.replaceFirstChar { c -> c.uppercase() }) }
+    answers["blood"]?.let { add("Blood" to if (it == "true") "Yes" else "No") }
 }

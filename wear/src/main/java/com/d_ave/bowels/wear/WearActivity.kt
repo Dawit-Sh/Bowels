@@ -2,6 +2,7 @@ package com.d_ave.bowels.wear
 
 import android.Manifest
 import android.os.Build
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -75,38 +75,34 @@ private val iso = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").wi
 private sealed interface Step {
     data object Home : Step
     data object Running : Step
-    data class Kind(val ended: Ended) : Step
     data class Stool(val ended: Ended) : Step
     data class Pain(val ended: Ended, val stool: Int) : Step
     data class Blood(val ended: Ended, val stool: Int, val pain: String) : Step
-    data class UrineColor(val ended: Ended) : Step
-    data class Saved(val heartRate: Int?) : Step
+    data object Saved : Step
 }
 
 /** What a finished session carries through the questions. */
-private data class Ended(val start: Instant, val end: Instant, val hr: HeartRateStats)
+private data class Ended(val start: Instant, val end: Instant)
 
 class WearActivity : ComponentActivity() {
-    private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        // Whatever was granted, the session is already running; turn the sensor on if we can.
-        if (WatchSession.running.value != null) SessionService.start(this)
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        // Whatever was answered, the session is already running; show it on the watch face if we may.
+        WatchSession.running.value?.let { SessionNotice.show(this, it.startTime.toEpochMilli()) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WatchSession.restore(this)
-        if (WatchSession.running.value != null) SessionService.start(this)
+        WatchSession.running.value?.let { SessionNotice.show(this, it.startTime.toEpochMilli()) }
         setContent { BowelsWatchApp(::startSession) }
     }
 
-    /** Starts at once; the heart-rate permission is asked the first time, in the same tap. */
+    /** Starts at once; the notification permission is asked the first time, in the same tap. */
     private fun startSession() {
-        WatchSession.start(this)
-        val needed = buildList {
-            if (!SessionService.hasSensorPermission(this@WearActivity)) add(Manifest.permission.BODY_SENSORS)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        if (needed.isNotEmpty()) permissions.launch(needed.toTypedArray()) else SessionService.start(this)
+        val session = WatchSession.start(this)
+        val ask = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (ask) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) else SessionNotice.show(this, session.startTime.toEpochMilli())
     }
 }
 
@@ -130,25 +126,21 @@ private fun BowelsWatchApp(onStart: () -> Unit) {
     }
 
     fun finish() {
-        SessionService.stop(context)
+        SessionNotice.hide(context)
         val session = WatchSession.stop(context) ?: return
-        step = Step.Kind(Ended(session.startTime, Instant.now(), session.heartRate))
+        step = Step.Stool(Ended(session.startTime, Instant.now()))
     }
 
-    fun save(ended: Ended, kind: String, answers: Map<String, String>) {
-        val hr = ended.hr
+    fun save(ended: Ended, answers: Map<String, String>) {
         val payload = WatchSessionPayload(
             id = UUID.randomUUID().toString(),
-            kind = kind,
+            kind = "bowel",
             startTime = iso.format(ended.start),
             endTime = iso.format(ended.end),
             durationSeconds = maxOf(1, ended.end.epochSecond - ended.start.epochSecond),
             answers = answers,
-            heartRateAvg = hr.average,
-            heartRateMin = hr.min,
-            heartRateMax = hr.max,
         )
-        step = Step.Saved(hr.average)
+        step = Step.Saved
         scope.launch {
             runCatching { sync.send(payload) }
             pending = sync.pendingCount()
@@ -161,13 +153,10 @@ private fun BowelsWatchApp(onStart: () -> Unit) {
         when (val s = step) {
             Step.Home -> HomeScreen(pending, phoneReady) { onStart(); step = Step.Running }
             Step.Running -> running?.let { RunningScreen(it, onFinish = ::finish, onCancel = {
-                SessionService.stop(context)
+                SessionNotice.hide(context)
                 WatchSession.stop(context)
                 step = Step.Home
             }) } ?: LaunchedEffect(Unit) { step = Step.Home }
-            is Step.Kind -> Choice("What was it?", listOf("💩" to "Bowel", "💧" to "Urine")) { picked ->
-                step = if (picked == "Bowel") Step.Stool(s.ended) else Step.UrineColor(s.ended)
-            }
             is Step.Stool -> Choice("How did it look?", stoolTypes.map { it.second }) { picked ->
                 step = Step.Pain(s.ended, stoolTypes.first { it.second.second == picked }.first)
             }
@@ -175,12 +164,9 @@ private fun BowelsWatchApp(onStart: () -> Unit) {
                 step = Step.Blood(s.ended, s.stool, picked.lowercase())
             }
             is Step.Blood -> Choice("Any blood?", listOf("✅" to "No", "🩸" to "Yes")) { picked ->
-                save(s.ended, "bowel", mapOf("stool_type" to s.stool.toString(), "pain" to s.pain, "blood" to (picked == "Yes").toString()))
+                save(s.ended, mapOf("stool_type" to s.stool.toString(), "pain" to s.pain, "blood" to (picked == "Yes").toString()))
             }
-            is Step.UrineColor -> Choice("Color?", listOf("🤍" to "Light", "💛" to "Normal", "🟠" to "Dark")) { picked ->
-                save(s.ended, "urine", mapOf("urine_color" to picked.lowercase()))
-            }
-            is Step.Saved -> SavedScreen(s.heartRate, pending) { step = Step.Home }
+            Step.Saved -> SavedScreen(pending) { step = Step.Home }
         }
     }
 }
@@ -225,17 +211,6 @@ private fun RunningScreen(session: RunningSession, onFinish: () -> Unit, onCance
     Scaffold(timeText = { TimeText() }) {
         Column(Modifier.fillMaxSize().padding(top = 28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text("%02d:%02d".format(elapsed / 60, elapsed % 60), fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, color = Cream)
-            val hr = session.heartRate.latest
-            Box(Modifier.padding(vertical = 4.dp)) {
-                Text(
-                    when {
-                        hr != null -> "♥ $hr bpm"
-                        session.measuring -> "♥ reading…"
-                        else -> "♥ off"
-                    },
-                    fontSize = 14.sp, color = Coral,
-                )
-            }
             androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 8.dp)) {
                 Button(onClick = onCancel, colors = ButtonDefaults.secondaryButtonColors(), modifier = Modifier.size(ButtonDefaults.SmallButtonSize)) {
                     Icon(Icons.Filled.Close, "Discard")
@@ -274,7 +249,7 @@ private fun ScalingLazyListScope.options(options: List<Pair<String, String>>, on
 }
 
 @Composable
-private fun SavedScreen(heartRate: Int?, pending: Int, onDone: () -> Unit) {
+private fun SavedScreen(pending: Int, onDone: () -> Unit) {
     LaunchedEffect(Unit) {
         delay(2500)
         onDone()
@@ -283,12 +258,6 @@ private fun SavedScreen(heartRate: Int?, pending: Int, onDone: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(Icons.Filled.Check, null, tint = Olive, modifier = Modifier.size(36.dp))
             Text("Saved", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Cream)
-            if (heartRate != null) {
-                androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Favorite, null, tint = Coral, modifier = Modifier.size(14.dp))
-                    Text(" avg $heartRate bpm", fontSize = 13.sp, color = Cream)
-                }
-            }
             Text(if (pending > 0) "Syncs when your phone is near" else "Sent to your phone", fontSize = 11.sp, color = Cream.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         }
     }

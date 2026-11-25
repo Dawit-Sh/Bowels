@@ -104,7 +104,7 @@ class Repository(private val helper: BowelsDatabase) {
     suspend fun saveSession(draft: SessionDraft): Long = write {
         val start = requireNotNull(draft.startTime) { "Session draft is incomplete." }
         val end = requireNotNull(draft.endTime) { "Session draft is incomplete." }
-        insertSession(draft.kind.key, start, end, draft.durationSeconds, draft.answers())
+        insertSession(SessionKind.Bowel.key, start, end, draft.durationSeconds, draft.answers())
     }
 
     /** Saves a session sent by the watch. Returns false if it was already saved (the watch may resend). */
@@ -117,13 +117,9 @@ class Repository(private val helper: BowelsDatabase) {
 
         val start = parseInstant(payload.startTime) ?: Instant.now()
         val end = parseInstant(payload.endTime) ?: start
-        val vitals = Vitals(
-            heartRateAvg = payload.heartRateAvg,
-            heartRateMin = payload.heartRateMin,
-            heartRateMax = payload.heartRateMax,
-            heartRateSource = VitalsKeys.SOURCE_WATCH,
-        )
-        insertSession(payload.kind, start, end, payload.durationSeconds, payload.answers + vitals.toAnswers() + (VitalsKeys.WATCH_ID to payload.id))
+        // A visit is its stool type, pain and blood. An older watch app may send more (heart rate); it isn't kept.
+        val answers = payload.answers.filterKeys { it in setOf("stool_type", "pain", "blood") }
+        insertSession(SessionKind.Bowel.key, start, end, payload.durationSeconds, answers + (VitalsKeys.WATCH_ID to payload.id))
         true
     }
 
@@ -143,7 +139,7 @@ class Repository(private val helper: BowelsDatabase) {
         return id
     }
 
-    /** Adds or replaces answers on a saved session (used to attach vitals after the fact). */
+    /** Adds or replaces answers on a saved session. */
     suspend fun putAnswers(sessionId: Long, answers: Map<String, String>) = write {
         val now = Instant.now().toIsoString()
         db.transaction {
@@ -161,23 +157,6 @@ class Repository(private val helper: BowelsDatabase) {
             put("answer_value", value)
             put("created_at", createdAt)
         })
-    }
-
-    suspend fun upsertDailyHealth(day: String, input: DailyHealthInput) = write {
-        val now = Instant.now().toIsoString()
-        val values = ContentValues().apply {
-            put("water", input.water); put("fiber", input.fiber); put("meals", input.meals)
-            put("stress", input.stress); put("sleep", input.sleep); put("exercise", input.exercise)
-            put("caffeine", input.caffeine.ifEmpty { "None" }); put("alcohol", input.alcohol.ifEmpty { "None" })
-            put("medication", input.medication.ifEmpty { "None" }); put("mood", input.mood.ifEmpty { "Neutral" })
-            put("updated_at", now)
-        }
-        val updated = db.update("daily_health", values, "day = ?", arrayOf(day))
-        if (updated == 0) {
-            values.put("day", day)
-            values.put("created_at", now)
-            db.insert("daily_health", null, values)
-        }
     }
 
     suspend fun saveSettings(settings: AppSettings) = write {

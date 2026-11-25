@@ -1,17 +1,23 @@
-## What's new in v3.3.0
+## What's new in v3.4.0
 
-Bowels can now send your logs to a dashboard of your own, so your gut sits next to your sleep, food and mood.
+Bowels is simpler: a visit is the timer and three taps (stool type, pain, blood), on the phone and on the watch. Everything about the rest of your day belongs in a dashboard that measures it.
 
-### New
-- **Your own dashboard (optional).** In Settings, Your Dashboard, scan the pairing code of a [Life Dashboard](https://github.com/owen282000/life-dashboard-stack) receiver running on your own server. From then on every session and daily health check goes there by itself: a few seconds after you log, when the app opens, and every hour. A server at home is only tried on your home Wi-Fi (or a VPN that reaches it), so nothing is lost while you're out, and your whole history goes the first time. Payloads are signed, the pairing secret never goes into a cloud backup, and nothing is sent until you pair. No pairing code, no change: everything stays on the phone as before.
+### Changed
+- **Three questions after a visit:** stool type, pain and blood. Urgency, completion and the tags (bloating, straining, gas) are gone.
+- **Bowel visits only.** Urine visits are no longer logged.
+- **No heart rate or blood pressure.** Bowels no longer reads Health Connect, and the watch no longer uses its heart-rate sensor. The Health Connect and body-sensor permissions are gone.
+- **No daily health check**, and with it Tomorrow's outlook, the habit links, the Fiber Effect card and the achievements that needed them (16 achievements now).
+- Reminders only check whether you've logged a visit that day.
+
+Your older visits, answers and checks stay: History, backups and your own dashboard keep everything you logged before.
 
 ---
 
 ## Install
 
-**Phone**: download `bowels-v3.3.0.apk` below and open it. It updates any earlier version and keeps all your history.
+**Phone**: download `bowels-v3.4.0.apk` below and open it. It updates any earlier version and keeps all your history.
 
-**Watch**: the watch app is unchanged since 3.2.0. To install it, use `bowels-wear-v3.3.0.apk` from a computer over Wi-Fi (about five minutes). Follow the step-by-step guide: https://dawitsh.dev/Bowels/watch.html
+**Watch**: update the watch app too, with `bowels-wear-v3.4.0.apk`, from a computer over Wi-Fi (about five minutes). Follow the step-by-step guide: https://dawitsh.dev/Bowels/watch.html
 
 **Widgets**: long-press your home screen, tap Widgets, and find Bowels.
 

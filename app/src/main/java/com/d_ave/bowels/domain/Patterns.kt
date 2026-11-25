@@ -70,14 +70,9 @@ object PatternAnalysis {
 
         fun rate(list: List<SessionWithAnswers>, test: (SessionWithAnswers) -> Boolean) =
             if (list.isEmpty()) null else (100.0 * list.count(test) / list.size).roundToInt()
-        fun tag(name: String) = { s: SessionWithAnswers -> name in s.answers["adaptive_tags"].orEmpty() }
         val symptomTests = listOf(
-            "Gas" to tag("gas"),
-            "Bloating" to tag("bloating"),
-            "Straining" to tag("straining"),
-            "High urgency" to { s: SessionWithAnswers -> (s.answers["urgency"]?.toIntOrNull() ?: 0) >= 4 },
-            "Felt incomplete" to { s: SessionWithAnswers -> s.answers["completion"] == "incomplete" },
             "Pain" to { s: SessionWithAnswers -> s.answers["pain"] in setOf("mild", "moderate", "severe") },
+            "Blood" to { s: SessionWithAnswers -> s.answers["blood"] == "true" },
         )
         val symptoms = if (last30.isEmpty()) emptyList() else symptomTests.map { (name, test) ->
             SymptomRate(name, rate(last30, test) ?: 0, rate(before30, test))

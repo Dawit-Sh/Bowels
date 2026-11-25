@@ -1,11 +1,8 @@
 package com.d_ave.bowels.domain
 
-import com.d_ave.bowels.data.DailyHealthRecord
 import com.d_ave.bowels.data.SessionKind
 import com.d_ave.bowels.data.SessionRecord
 import com.d_ave.bowels.data.SessionWithAnswers
-import com.d_ave.bowels.data.toIsoString
-import com.d_ave.bowels.shared.VitalsKeys
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -35,42 +32,9 @@ object DemoData {
             val answers = buildMap {
                 put("stool_type", s.stool.toString())
                 put("pain", s.pain)
-                put("urgency", s.urgency.toString())
                 put("blood", "false")
-                if (s.hr != null) {
-                    put(VitalsKeys.HR_AVG, s.hr.toString())
-                    put(VitalsKeys.HR_MIN, (s.hr - 6).toString())
-                    put(VitalsKeys.HR_MAX, (s.hr + 11).toString())
-                    put(VitalsKeys.HR_SOURCE, VitalsKeys.SOURCE_WATCH)
-                }
-                if (s.id % 4 == 1L) {
-                    put(VitalsKeys.BP_SYSTOLIC, (118 + s.id % 7).toString())
-                    put(VitalsKeys.BP_DIASTOLIC, (76 + s.id % 5).toString())
-                    put(VitalsKeys.BP_SOURCE, VitalsKeys.SOURCE_HEALTH_CONNECT)
-                }
             }
             SessionWithAnswers(record, answers)
         }.sortedByDescending { it.session.startTime }
-    }
-
-    fun dailyHealth(): List<DailyHealthRecord> = (0 until 15).map { i ->
-        val day = LocalDate.now().minusDays(i.toLong()).toString()
-        val stamp = LocalDate.now().minusDays(i.toLong()).atTime(9, 0).atZone(ZoneId.systemDefault()).toInstant().toIsoString()
-        DailyHealthRecord(
-            id = i + 1L,
-            day = day,
-            water = if (i % 6 == 0) "Low" else if (i % 3 == 0) "Okay" else "Great",
-            fiber = if (i % 4 == 0) "Low" else if (i % 2 == 0) "High" else "Medium",
-            meals = "Balanced",
-            stress = if (i % 7 == 0) "High" else if (i % 4 == 0) "Medium" else "Low",
-            sleep = if (i % 5 == 0) "Poor" else if (i % 3 == 0) "Fair" else "Great",
-            exercise = if (i % 3 == 0) "None" else if (i % 2 == 0) "Light" else "Active",
-            caffeine = if (i % 5 == 0) "High" else if (i % 3 == 0) "Medium" else if (i % 2 == 0) "Low" else "None",
-            alcohol = if (i % 8 == 0) "Moderate" else if (i % 10 == 0) "Light" else "None",
-            medication = if (i % 9 == 0) "OTC" else "None",
-            mood = if (i % 7 == 0) "Stressed" else if (i % 5 == 0) "Anxious" else if (i % 4 == 0) "Neutral" else if (i % 3 == 0) "Sad" else "Happy",
-            createdAt = stamp,
-            updatedAt = stamp,
-        )
     }
 }

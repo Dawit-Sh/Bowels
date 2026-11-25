@@ -54,7 +54,6 @@ import com.d_ave.bowels.data.SessionKind
 import com.d_ave.bowels.data.ThemeMode
 import com.d_ave.bowels.data.localDate
 import com.d_ave.bowels.domain.Analytics
-import com.d_ave.bowels.domain.Outlook
 import com.d_ave.bowels.domain.Rhythm
 import com.d_ave.bowels.domain.stoolTypeMeta
 import com.d_ave.bowels.notify.Notifications
@@ -88,7 +87,6 @@ private class WidgetData(
     val nextLabel: String,
     val today: Int,
     val streak: Int,
-    val outlook: Outlook?,
     val week: List<Pair<LocalDate, Int>>,
     val weekVisits: Int,
     val weekMinutes: Int,
@@ -112,7 +110,7 @@ private class WidgetData(
             val sessions = if (real) stored.sessions else emptyList()
             val visits = Rhythm.distinct(sessions).filter { it.session.kind == SessionKind.Bowel }
             val today = LocalDate.now()
-            val analytics = if (real && visits.isNotEmpty()) Analytics.build(sessions, stored.dailyHealth) else null
+            val analytics = if (real && visits.isNotEmpty()) Analytics.build(sessions) else null
             val week = (6 downTo 0).map { today.minusDays(it.toLong()) }.map { d -> d to visits.count { it.session.startTime.localDate() == d } }
             val weekly = visits.filter { it.session.startTime.localDate() > today.minusDays(7) }
             val typed = weekly.mapNotNull { it.stoolType }
@@ -123,7 +121,6 @@ private class WidgetData(
                 nextLabel = analytics?.predictedNextTimeLabel ?: "Log a few visits",
                 today = week.last().second,
                 streak = analytics?.patterns?.currentStreak ?: 0,
-                outlook = analytics?.forecast?.outlook,
                 week = week,
                 weekVisits = weekly.size,
                 weekMinutes = weekly.takeIf { it.isNotEmpty() }?.let { w -> (w.sumOf { it.session.durationSeconds } / 60.0 / w.size).roundToInt() } ?: 0,
@@ -217,7 +214,7 @@ class SessionWidget : GlanceAppWidget() {
     }
 }
 
-/** Next likely time, today's count, your streak and tomorrow's outlook. */
+/** Next likely time, today's count, your streak and how steady the week has been. */
 class RhythmWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val first = WidgetData.load(context)
@@ -234,10 +231,7 @@ class RhythmWidget : GlanceAppWidget() {
                         Spacer(GlanceModifier.width(8.dp))
                         Stat("${d.streak}", "day streak", c)
                         Spacer(GlanceModifier.width(8.dp))
-                        Stat(
-                            when (d.outlook) { Outlook.Steady -> "Steady"; Outlook.Looser -> "Looser"; Outlook.Harder -> "Harder"; null -> "—" },
-                            "tomorrow", c,
-                        )
+                        Stat(d.weekSteady?.let { "$it%" } ?: "—", "Type 3-4", c)
                     }
                 }
             }
@@ -299,7 +293,6 @@ class QuickLogAction : ActionCallback {
         app.markHasRealData()
         val start = Instant.now()
         app.repository.saveSession(SessionDraft(stoolType = type, startTime = start, endTime = start.plusSeconds(60), durationSeconds = 60))
-        app.enrichRecentVitals()
         BowelsWidgets.refresh(context)
     }
 

@@ -11,17 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,19 +31,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.d_ave.bowels.data.DailyHealthInput
 import com.d_ave.bowels.data.SessionDraft
-import com.d_ave.bowels.data.SessionKind
-import com.d_ave.bowels.data.Vitals
-import com.d_ave.bowels.domain.healthLabel
-import com.d_ave.bowels.domain.healthOptions
 import com.d_ave.bowels.domain.stoolTypeMeta
-import com.d_ave.bowels.shared.VitalsKeys
-import com.d_ave.bowels.ui.Connections
 import com.d_ave.bowels.ui.components.BCard
 import com.d_ave.bowels.ui.components.BText
 import com.d_ave.bowels.ui.components.ChipRow
@@ -57,11 +44,7 @@ import com.d_ave.bowels.ui.components.GradientButton
 import com.d_ave.bowels.ui.components.ScreenColumn
 import com.d_ave.bowels.ui.components.SectionTitle
 import com.d_ave.bowels.ui.theme.LocalPalette
-import com.d_ave.bowels.ui.theme.Manrope
 import kotlinx.coroutines.delay
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 fun formatTimer(seconds: Long) = "%02d:%02d".format(seconds / 60, seconds % 60)
 
@@ -98,7 +81,7 @@ fun ActiveSessionScreen(draft: SessionDraft, onUpdate: ((SessionDraft) -> Sessio
                             .clip(RoundedCornerShape(24.dp))
                             .background(if (active) p.surfaceContainerLowest else p.surfaceContainerHigh)
                             .border(BorderStroke(2.dp, if (active) p.primary.copy(alpha = 0.33f) else Color.Transparent), RoundedCornerShape(24.dp))
-                            .clickable { onUpdate { it.copy(kind = SessionKind.Bowel, stoolType = type) } }
+                            .clickable { onUpdate { it.copy(stoolType = type) } }
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
@@ -124,167 +107,24 @@ fun ActiveSessionScreen(draft: SessionDraft, onUpdate: ((SessionDraft) -> Sessio
 
 class QuestionActions(
     val update: ((SessionDraft) -> SessionDraft) -> Unit,
-    val setKind: (SessionKind) -> Unit,
-    val setManualVitals: (Int?, Int?, Int?) -> Unit,
-    val connectHealth: () -> Unit,
-    val save: (DailyHealthInput?) -> Unit,
+    val save: () -> Unit,
 )
 
+/** After a visit: the stool type, pain and blood. Everything else about the day is logged in your dashboard app. */
 @Composable
-fun QuestionsScreen(draft: SessionDraft, health: DailyHealthInput, filledToday: Boolean, connections: Connections, actions: QuestionActions) {
-    val p = LocalPalette.current
-    var localHealth by remember { mutableStateOf(health) }
-
+fun QuestionsScreen(draft: SessionDraft, actions: QuestionActions) {
     ScreenColumn {
         SectionTitle("Session complete", "Duration ${draft.durationSeconds / 60}:${"%02d".format(draft.durationSeconds % 60)}")
 
         BCard(Modifier.fillMaxWidth()) {
-            FieldLabel("Type")
-            ChipRow(SessionKind.entries, { draft.kind == it }, { it.key }) { actions.setKind(it) }
+            FieldLabel("Stool Type")
+            ChipRow((1..7).toList(), { draft.stoolType == it }, { stoolTypeMeta.getValue(it).let { m -> "${m.emoji} ${m.short}" } }) { v -> actions.update { it.copy(stoolType = v) } }
+            FieldLabel("Pain")
+            ChipRow(listOf("none", "mild", "moderate", "severe"), { draft.pain == it }) { v -> actions.update { it.copy(pain = v) } }
+            FieldLabel("Blood")
+            ChipRow(listOf("No", "Yes"), { draft.blood == (it == "Yes") }) { v -> actions.update { it.copy(blood = v == "Yes") } }
         }
 
-        if (draft.kind == SessionKind.Urine) {
-            BCard(Modifier.fillMaxWidth()) {
-                FieldLabel("Urgency")
-                ChipRow(listOf("low", "medium", "high"), { draft.urineUrgency == it }) { v -> actions.update { it.copy(urineUrgency = v) } }
-                FieldLabel("Color")
-                ChipRow(listOf("light", "normal", "dark"), { draft.urineColor == it }) { v -> actions.update { it.copy(urineColor = v) } }
-            }
-        } else {
-            BCard(Modifier.fillMaxWidth()) {
-                FieldLabel("Stool Type")
-                ChipRow((1..7).toList(), { draft.stoolType == it }, { stoolTypeMeta.getValue(it).let { m -> "${m.emoji} ${m.short}" } }) { v -> actions.update { it.copy(stoolType = v) } }
-                FieldLabel("Pain")
-                ChipRow(listOf("none", "mild", "moderate", "severe"), { draft.pain == it }) { v -> actions.update { it.copy(pain = v) } }
-                FieldLabel("Blood")
-                ChipRow(listOf("No", "Yes"), { draft.blood == (it == "Yes") }) { v -> actions.update { it.copy(blood = v == "Yes") } }
-                FieldLabel("Urgency")
-                ChipRow((1..5).toList(), { draft.urgency == it }) { v -> actions.update { it.copy(urgency = v) } }
-                FieldLabel("Completion")
-                ChipRow(listOf("incomplete", "normal", "urgent"), { draft.completion == it }) { v -> actions.update { it.copy(completion = v) } }
-                FieldLabel("Adaptive tags")
-                ChipRow(listOf("bloating", "straining", "gas"), { it in draft.adaptiveTags }) { tag ->
-                    actions.update { d -> d.copy(adaptiveTags = if (tag in d.adaptiveTags) d.adaptiveTags - tag else d.adaptiveTags + tag) }
-                }
-            }
-        }
-
-        VitalsCard(draft.vitals, connections, actions)
-
-        HealthCheckCard(localHealth, filledToday, startOpen = !filledToday) { localHealth = it }
-
-        GradientButton("Save to Journal", Icons.Filled.Save) {
-            // The day's check is part of finishing a session; once it's in, only changes are saved.
-            actions.save(if (!filledToday || localHealth != health) localHealth else null)
-        }
+        GradientButton("Save to Journal", Icons.Filled.Save, onClick = actions.save)
     }
 }
-
-/**
- * The full daily check (water, fiber, meals, stress, sleep, exercise, caffeine, alcohol,
- * medication, mood). Shown open after a session until today's is in, then folded to one line.
- */
-@Composable
-fun HealthCheckCard(health: DailyHealthInput, filledToday: Boolean, startOpen: Boolean, onChange: (DailyHealthInput) -> Unit) {
-    val p = LocalPalette.current
-    var open by rememberSaveable { mutableStateOf(startOpen) }
-    BCard(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            BText("Daily Health Check", p.primary, 18.sp, FontWeight.Bold, modifier = Modifier.weight(1f))
-            if (filledToday) BText("Saved today ✓", p.onSurfaceVariant, 12.sp, FontWeight.Bold)
-        }
-        BText(
-            if (filledToday) "Change anything that's different now." else "Ten taps, filled in from last time. It's what lets Bowels link your habits to your stools.",
-            p.onSurfaceVariant, 13.sp, lineHeight = 18.sp,
-        )
-        if (open) {
-            healthOptions.forEach { (field, options) ->
-                FieldLabel(healthLabel(field))
-                ChipRow(options, { health[field] == it }) { onChange(health.with(field, it)) }
-            }
-        } else {
-            BText(
-                healthOptions.joinToString("  ·  ") { (field, _) -> health[field] },
-                p.onSurface, 13.sp, lineHeight = 19.sp,
-            )
-            BText("Edit", p.primary, 14.sp, FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { open = true }.padding(vertical = 4.dp))
-        }
-    }
-}
-
-private val timeFormat = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()).withZone(ZoneId.systemDefault())
-
-fun sourceLabel(source: String?) = when (source) {
-    VitalsKeys.SOURCE_WATCH -> "from your watch"
-    VitalsKeys.SOURCE_HEALTH_CONNECT -> "from Health Connect"
-    VitalsKeys.SOURCE_MANUAL -> "entered by you"
-    else -> ""
-}
-
-@Composable
-private fun VitalsCard(vitals: Vitals, connections: Connections, actions: QuestionActions) {
-    val p = LocalPalette.current
-    var hr by rememberSaveable { mutableStateOf(vitals.heartRateAvg?.toString().orEmpty()) }
-    var sys by rememberSaveable { mutableStateOf(vitals.systolic?.toString().orEmpty()) }
-    var dia by rememberSaveable { mutableStateOf(vitals.diastolic?.toString().orEmpty()) }
-
-    // Readings fetched from Health Connect fill the boxes, unless you already typed something.
-    LaunchedEffect(vitals.heartRateAvg, vitals.systolic, vitals.diastolic) {
-        if (hr.isEmpty()) vitals.heartRateAvg?.let { hr = it.toString() }
-        if (sys.isEmpty() && dia.isEmpty() && vitals.hasBloodPressure) {
-            sys = vitals.systolic.toString()
-            dia = vitals.diastolic.toString()
-        }
-    }
-    fun push() = actions.setManualVitals(hr.toIntOrNull()?.takeIf { it in 25..250 }, sys.toIntOrNull()?.takeIf { it in 60..260 }, dia.toIntOrNull()?.takeIf { it in 30..180 })
-
-    BCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Filled.Favorite, null, tint = p.secondary)
-            BText("Heart & blood pressure", p.primary, 18.sp, FontWeight.Bold, modifier = Modifier.weight(1f))
-            if (connections.fetchingVitals) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = p.primary)
-        }
-        val note = buildList {
-            if (vitals.hasHeartRate && vitals.heartRateSource != VitalsKeys.SOURCE_MANUAL) {
-                add("Heart rate ${vitals.heartRateAvg} bpm ${sourceLabel(vitals.heartRateSource)}" + (vitals.heartRateMax?.let { " (peak $it)" } ?: ""))
-            }
-            if (vitals.hasBloodPressure && vitals.bloodPressureSource != VitalsKeys.SOURCE_MANUAL) {
-                add("Blood pressure ${vitals.systolic}/${vitals.diastolic} ${sourceLabel(vitals.bloodPressureSource)}" + (vitals.bloodPressureTime?.let { " at ${timeFormat.format(it)}" } ?: ""))
-            }
-        }
-        BText(
-            when {
-                note.isNotEmpty() -> note.joinToString("\n")
-                connections.healthConnectGranted -> "Nothing recorded around this session yet. Type a reading in if you took one."
-                else -> "Optional. Type a reading in, or connect Health Connect so your watch or cuff fills this in."
-            },
-            p.onSurfaceVariant, 13.sp, lineHeight = 19.sp,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            NumberField("Heart rate", hr, "bpm", Modifier.weight(1f)) { hr = it; push() }
-            NumberField("Systolic", sys, "mmHg", Modifier.weight(1f)) { sys = it; push() }
-            NumberField("Diastolic", dia, "mmHg", Modifier.weight(1f)) { dia = it; push() }
-        }
-        if (!connections.healthConnectGranted && connections.healthConnect != com.d_ave.bowels.health.HealthConnectManager.Status.Unsupported) {
-            BText("Connect Health Connect", p.primary, 14.sp, FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = actions.connectHealth).padding(vertical = 6.dp))
-        }
-    }
-}
-
-@Composable
-private fun NumberField(label: String, value: String, unit: String, modifier: Modifier, onChange: (String) -> Unit) {
-    val p = LocalPalette.current
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onChange(it.filter(Char::isDigit).take(3)) },
-        modifier = modifier,
-        label = { BText(label, p.onSurfaceVariant, 11.sp, maxLines = 1) },
-        suffix = { BText(unit, p.outline, 10.sp) },
-        singleLine = true,
-        textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = p.onSurface),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = p.primary, unfocusedBorderColor = p.outline.copy(alpha = 0.4f), cursorColor = p.primary),
-    )
-}
-

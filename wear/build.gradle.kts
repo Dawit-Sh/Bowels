@@ -69,7 +69,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.service)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.material.icons)
@@ -78,7 +77,6 @@ dependencies {
     implementation(libs.wear.compose.foundation)
     implementation(libs.wear.ongoing)
     implementation(libs.wear.remote.interactions)
-    implementation(libs.health.services)
     implementation(libs.concurrent.futures.ktx)
     implementation(libs.guava)
     // Play services pulls in an old Fragment that breaks the ActivityResult APIs.

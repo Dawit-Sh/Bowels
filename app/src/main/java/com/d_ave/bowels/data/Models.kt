@@ -219,38 +219,26 @@ data class Vitals(
     }
 }
 
+/**
+ * A visit being logged: the timer, then three answers. Older visits may also carry urine
+ * answers, urgency, completion, tags and vitals; those stay readable (History, backups, the
+ * dashboard), but nothing new asks for them.
+ */
 data class SessionDraft(
-    val kind: SessionKind = SessionKind.Bowel,
     val startTime: Instant? = null,
     val endTime: Instant? = null,
     val durationSeconds: Long = 0,
-    val urineUrgency: String? = null,
-    val urineColor: String? = null,
     val stoolType: Int? = 4,
     val pain: String? = "none",
     val blood: Boolean? = false,
-    val urgency: Int? = 3,
-    val completion: String? = "normal",
-    val adaptiveTags: List<String> = emptyList(),
-    val vitals: Vitals = Vitals(),
 ) {
     val isRunning get() = startTime != null && endTime == null
 
-    fun answers(): Map<String, String> {
-        val base = if (kind == SessionKind.Urine) {
-            mapOf("urine_urgency" to urineUrgency, "urine_color" to urineColor)
-        } else {
-            mapOf(
-                "stool_type" to stoolType?.toString(),
-                "pain" to pain,
-                "blood" to blood?.toString(),
-                "urgency" to urgency?.toString(),
-                "completion" to completion,
-                "adaptive_tags" to adaptiveTags.joinToString(","),
-            )
-        }
-        return base.filterValues { !it.isNullOrEmpty() }.mapValues { it.value!! } + vitals.toAnswers()
-    }
+    fun answers(): Map<String, String> = mapOf(
+        "stool_type" to stoolType?.toString(),
+        "pain" to pain,
+        "blood" to blood?.toString(),
+    ).filterValues { !it.isNullOrEmpty() }.mapValues { it.value!! }
 }
 
 data class InsightItem(val id: String, val title: String, val body: String, val severity: Severity) {

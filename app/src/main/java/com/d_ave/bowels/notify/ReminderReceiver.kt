@@ -37,13 +37,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val data = app.repository.data.value ?: app.repository.reload()
         val today = LocalDate.now()
         val logged = data.settings.hasRealData && data.sessions.any { it.session.startTime.localDate() == today }
-        val checked = data.settings.hasRealData && data.dailyHealth.firstOrNull()?.day == today.toString()
-        return when {
-            logged && checked -> null
-            logged -> "Today's health check is still open. Ten taps."
-            checked -> "No visit logged today yet. Tap to log one when it happens."
-            else -> "Log today's rhythm and health check in under a minute."
-        }
+        return if (logged) null else "No visit logged today yet. Tap to log one when it happens."
     }
 
     companion object {

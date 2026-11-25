@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Watch
@@ -35,10 +34,8 @@ import androidx.compose.ui.unit.sp
 import com.d_ave.bowels.data.InsightItem
 import com.d_ave.bowels.data.Screen
 import com.d_ave.bowels.data.localDate
-import com.d_ave.bowels.domain.healthOptions
 import com.d_ave.bowels.domain.quickLogPresets
 import com.d_ave.bowels.domain.stoolTypeMeta
-import com.d_ave.bowels.health.HealthConnectManager
 import com.d_ave.bowels.ui.UiState
 import com.d_ave.bowels.ui.components.BCard
 import com.d_ave.bowels.ui.components.BText
@@ -62,8 +59,6 @@ class HomeActions(
     val setScreen: (Screen) -> Unit,
     val startSession: () -> Unit,
     val quickLog: (Int) -> Unit,
-    val saveHealth: (com.d_ave.bowels.data.DailyHealthInput) -> Unit,
-    val connectHealth: () -> Unit,
     val installOnWatch: () -> Unit,
     val dismissWatch: () -> Unit,
     val markWatchInstalled: () -> Unit,
@@ -99,7 +94,7 @@ fun HomeScreen(state: UiState, actions: HomeActions) {
         consistency >= 70 -> "$weekCount sessions this week. Good tracking habits."
         consistency >= 50 -> "$weekCount sessions this week. Keep building the habit."
         weekCount > 0 -> "$weekCount session${if (weekCount == 1) "" else "s"} this week. Track daily for better insights."
-        else -> "Fast, local-first tracking with quick log, daily health, and predictive insights."
+        else -> "Fast, local-first tracking with quick log and insights from your own rhythm."
     }
 
     ScreenColumn {
@@ -124,17 +119,6 @@ fun HomeScreen(state: UiState, actions: HomeActions) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill("Next likely bowel time: ${analytics.predictedNextTimeLabel}", p.primary, p.primary.copy(alpha = 0.08f))
             Pill("Avg duration ${(analytics.averageDurationSeconds / 60.0).roundToInt()}m", p.secondary, p.secondary.copy(alpha = 0.08f))
-            analytics.vitals.averageHeartRate?.let { Pill("Avg heart rate $it bpm", p.tertiary, p.tertiary.copy(alpha = 0.08f)) }
-            analytics.forecast?.let { f ->
-                Pill(
-                    "Tomorrow: " + when (f.outlook) {
-                        com.d_ave.bowels.domain.Outlook.Steady -> "likely steady"
-                        com.d_ave.bowels.domain.Outlook.Looser -> "leaning looser"
-                        com.d_ave.bowels.domain.Outlook.Harder -> "leaning harder"
-                    },
-                    p.tertiary, p.tertiary.copy(alpha = 0.08f),
-                )
-            }
         }
 
         BCard(Modifier.fillMaxWidth()) {
@@ -182,8 +166,6 @@ fun HomeScreen(state: UiState, actions: HomeActions) {
             }
         }
 
-        HealthCheckCard(state.latestHealth, state.ownFilledToday, startOpen = false) { actions.saveHealth(it) }
-
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
             QuickLink(Icons.Filled.AutoAwesome, "Weekly Wrapped") { actions.setScreen(Screen.Weekly) }
             QuickLink(Icons.Filled.EmojiEvents, "Milestones") { actions.setScreen(Screen.Badges) }
@@ -195,27 +177,12 @@ fun HomeScreen(state: UiState, actions: HomeActions) {
 @Composable
 private fun ConnectionCards(state: UiState, actions: HomeActions) {
     val c = state.connections
-    val hcOffer = when {
-        c.healthConnectGranted -> null
-        c.healthConnect == HealthConnectManager.Status.Available -> "Connect"
-        c.healthConnect == HealthConnectManager.Status.NeedsInstall || c.healthConnect == HealthConnectManager.Status.NeedsUpdate -> "Get Health Connect"
-        else -> null
-    }
-    if (hcOffer != null) {
-        ConnectCard(
-            Icons.Filled.Favorite,
-            "See heart rate and blood pressure",
-            "Bowels reads what your watch or cuff recorded during each session. It never writes or shares anything.",
-            hcOffer,
-            actions.connectHealth,
-        )
-    }
     val watch = c.watch
     if (watch is WatchConnector.State.NeedsInstall && !c.watchPromptDismissed) {
         ConnectCard(
             Icons.Filled.Watch,
             "Track from ${watch.name}",
-            "Add Bowels to your watch to log when your phone is in another room. It measures heart rate during the session and syncs on its own.",
+            "Add Bowels to your watch to log when your phone is in another room. It syncs to your phone on its own.",
             "Install on watch",
             actions.installOnWatch,
             actions.dismissWatch,

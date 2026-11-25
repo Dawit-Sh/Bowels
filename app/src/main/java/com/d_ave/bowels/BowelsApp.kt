@@ -11,9 +11,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import com.d_ave.bowels.domain.Analytics
 import com.d_ave.bowels.domain.milestones
-import com.d_ave.bowels.health.HealthConnectManager
 import com.d_ave.bowels.notify.Notifications
-import com.d_ave.bowels.shared.VitalsKeys
 import com.d_ave.bowels.wear.WatchConnector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,10 +20,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import java.time.Duration
-import java.time.Instant
 
 class BowelsApp : Application() {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -34,14 +28,10 @@ class BowelsApp : Application() {
         private set
     lateinit var prefs: Prefs
         private set
-    lateinit var healthConnect: HealthConnectManager
-        private set
     lateinit var watch: WatchConnector
         private set
     lateinit var dashboard: DashboardSync
         private set
-
-    private val enrichLock = Mutex()
 
     private companion object {
         const val SEEDED = "_seeded"
@@ -52,7 +42,6 @@ class BowelsApp : Application() {
         super.onCreate()
         repository = Repository(BowelsDatabase(this))
         prefs = Prefs(this).also { it.migrateFromAsyncStorage() }
-        healthConnect = HealthConnectManager(this)
         watch = WatchConnector(this)
         dashboard = DashboardSync(this)
         Notifications.createChannels(this)
@@ -98,7 +87,7 @@ class BowelsApp : Application() {
     private fun watchMilestones() {
         appScope.launch {
             repository.data.filterNotNull()
-                .map { if (it.settings.hasRealData) Analytics.build(it.sessions, it.dailyHealth).milestoneProgressDays else null }
+                .map { if (it.settings.hasRealData) Analytics.build(it.sessions).milestoneProgressDays else null }
                 .distinctUntilChanged()
                 .collect { days ->
                     if (days == null) return@collect
@@ -117,7 +106,7 @@ class BowelsApp : Application() {
         }
         appScope.launch {
             repository.data.filterNotNull()
-                .map { if (it.settings.hasRealData) Achievements.progress(it.sessions, it.dailyHealth).filter { a -> a.earned }.map { a -> a.achievement } else null }
+                .map { if (it.settings.hasRealData) Achievements.progress(it.sessions).filter { a -> a.earned }.map { a -> a.achievement } else null }
                 .distinctUntilChanged()
                 .collect { earned ->
                     if (earned == null) return@collect
@@ -131,31 +120,6 @@ class BowelsApp : Application() {
                     fresh.take(2).forEach { Notifications.showAchievement(this@BowelsApp, it) }
                     if (fresh.isNotEmpty()) prefs.unlockedAchievements = known + fresh.map { it.id }
                 }
-        }
-    }
-
-    /**
-     * Looks up heart rate and blood pressure in Health Connect for recent sessions that don't
-     * have them yet. Runs when the app opens, so vitals show up without anyone asking.
-     */
-    fun enrichRecentVitals() {
-        appScope.launch {
-            enrichLock.withLock {
-                if (!healthConnect.hasAnyPermission()) return@launch
-                val since = Instant.now().minus(Duration.ofDays(7))
-                val pending = repository.data.value?.sessions.orEmpty().filter {
-                    it.session.startTime.isAfter(since) && it.answers[VitalsKeys.VITALS_CHECKED] == null
-                }
-                // Watches and cuffs sync to Health Connect late, so keep looking for a few hours.
-                val settled = Instant.now().minus(Duration.ofHours(6))
-                for (session in pending) {
-                    val found = healthConnect.vitalsAround(session.session.startTime, session.session.endTime)
-                    val done = session.session.endTime.isBefore(settled)
-                    if (found.isEmpty && !done) continue
-                    val merged = session.vitals.mergeMissing(found)
-                    repository.putAnswers(session.id, merged.toAnswers() + if (done) mapOf(VitalsKeys.VITALS_CHECKED to "true") else emptyMap())
-                }
-            }
         }
     }
 }

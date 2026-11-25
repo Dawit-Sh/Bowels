@@ -1,7 +1,5 @@
 package com.d_ave.bowels.domain
 
-import com.d_ave.bowels.data.DailyHealthInput
-import com.d_ave.bowels.data.DailyHealthRecord
 import com.d_ave.bowels.data.SessionKind
 import com.d_ave.bowels.data.SessionWithAnswers
 import java.time.Duration
@@ -19,11 +17,6 @@ data class Comparison(val label: String, val value: String, val note: String)
 data class SessionDetail(
     val session: SessionWithAnswers,
     val comparisons: List<Comparison>,
-    /** The health check of that day and of the day before, when filled in. */
-    val dayHealth: DailyHealthInput?,
-    val dayBeforeHealth: DailyHealthInput?,
-    /** Links from your own history that fit this day ("after high-stress days you run looser"). */
-    val links: List<String>,
     /** Where this visit sits among your visits: "1 of 3 that day", "visit 87". */
     val ordinal: String,
     val stoolMeaning: String?,
@@ -48,7 +41,7 @@ object SessionDetails {
 
     private fun median(values: List<Double>) = values.sorted().let { (it[(it.size - 1) / 2] + it[it.size / 2]) / 2 }
 
-    fun build(target: SessionWithAnswers, all: List<SessionWithAnswers>, dailyHealth: List<DailyHealthRecord>): SessionDetail {
+    fun build(target: SessionWithAnswers, all: List<SessionWithAnswers>): SessionDetail {
         val visits = Rhythm.distinct(all).filter { it.session.kind == target.session.kind }.sortedBy { it.session.startTime }
         val index = visits.indexOfFirst { it.id == target.id }.takeIf { it >= 0 }
             ?: visits.indexOfLast { it.session.startTime <= target.session.startTime }.coerceAtLeast(0)
@@ -110,33 +103,13 @@ object SessionDetails {
                 )
             }
         }
-        target.vitals.heartRateAvg?.let { hr ->
-            val usual = before.mapNotNull { it.vitals.heartRateAvg }
-            comparisons += Comparison(
-                "Heart rate", "$hr bpm" + (target.vitals.heartRateMax?.let { " (peak $it)" } ?: ""),
-                if (usual.size >= 3) {
-                    val avg = usual.average().roundToInt()
-                    when {
-                        hr - avg >= 8 -> "${hr - avg} bpm above your usual $avg. Straining often does this."
-                        avg - hr >= 8 -> "${avg - hr} bpm below your usual $avg."
-                        else -> "About your usual $avg bpm."
-                    }
-                } else "",
-            )
-        }
-
         val day = target.session.startTime.atZone(zone).toLocalDate()
-        val byDay = dailyHealth.associateBy { it.day }
-        val dayHealth = byDay[day.toString()]?.toInput()
-        val dayBefore = byDay[day.minusDays(1).toString()]?.toInput()
 
         val sameDay = visits.filter { it.session.startTime.atZone(zone).toLocalDate() == day }
         val ordinal = buildString {
             append("Visit ${index + 1}")
             if (sameDay.size > 1) append(" · ${sameDay.indexOfFirst { it.id == target.id } + 1} of ${sameDay.size} that day")
         }
-
-        val links = Analytics.linksFor(day, all, dailyHealth)
 
         val meaning = when (type) {
             1, 2 -> "Types 1-2 mean food moved slowly through the gut, the pattern of constipation."
@@ -145,7 +118,7 @@ object SessionDetails {
             6, 7 -> "Types 6-7 mean food moved through fast, the pattern of diarrhoea."
             else -> null
         }
-        return SessionDetail(target, comparisons, dayHealth, dayBefore, links, ordinal, meaning)
+        return SessionDetail(target, comparisons, ordinal, meaning)
     }
 
     private fun hours(minutes: Int) = if (minutes < 90) "$minutes min" else "${(minutes / 60.0).roundToInt()} h"

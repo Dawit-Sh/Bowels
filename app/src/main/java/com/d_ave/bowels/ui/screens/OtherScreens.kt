@@ -95,7 +95,6 @@ import com.d_ave.bowels.domain.finalMilestone
 import com.d_ave.bowels.domain.healthInfo
 import com.d_ave.bowels.domain.milestones
 import com.d_ave.bowels.domain.nextMilestone
-import com.d_ave.bowels.health.HealthConnectManager
 import com.d_ave.bowels.ui.Connections
 import com.d_ave.bowels.dashboard.DashboardStatus
 import com.d_ave.bowels.ui.components.BCard
@@ -321,7 +320,6 @@ class SettingsActions(
     val setBackground: (BackgroundKey) -> Unit,
     val setReminderTimes: (List<LocalTime>) -> Unit,
     val setRemindersOn: (Boolean) -> Unit,
-    val connectHealth: () -> Unit,
     val installOnWatch: () -> Unit,
     val checkUpdates: () -> Unit,
     val recheckWatch: () -> Unit,
@@ -376,7 +374,7 @@ fun SettingsScreen(
                 Column(Modifier.weight(1f)) {
                     BText("Daily reminders", p.onSurface, 20.sp, FontWeight.Bold)
                     BText(
-                        if (settings.notificationsEnabled) "A reminder is skipped when you've already logged a visit and done the health check that day."
+                        if (settings.notificationsEnabled) "A reminder is skipped when you've already logged a visit that day."
                         else "Off. The weekly report is off too.",
                         p.onSurfaceVariant, 13.sp, lineHeight = 18.sp,
                     )
@@ -411,17 +409,6 @@ fun SettingsScreen(
         }
         BCard(Modifier.fillMaxWidth()) {
             BText("Connections", p.onSurface, 20.sp, FontWeight.Bold)
-            ConnectionRow(
-                Icons.Filled.Favorite, "Health Connect",
-                when {
-                    connections.healthConnectGranted -> "Connected. Heart rate and blood pressure fill in on their own."
-                    connections.healthConnect == HealthConnectManager.Status.Unsupported -> "Not available on this phone."
-                    connections.healthConnect == HealthConnectManager.Status.Available -> "Not connected yet."
-                    else -> "Not installed yet."
-                },
-                action = if (!connections.healthConnectGranted && connections.healthConnect != HealthConnectManager.Status.Unsupported) "Connect" else null,
-                onAction = actions.connectHealth,
-            )
             val watch = connections.watch
             ConnectionRow(
                 Icons.Filled.Watch, "Watch",
@@ -571,8 +558,8 @@ fun OnboardingScreen(onBegin: () -> Unit, onImport: () -> Unit) {
     val p = LocalPalette.current
     val features = listOf(
         Triple(Icons.Filled.VisibilityOff, "Discrete Tracking", "Elegant, quiet entries that blend into your daily flow."),
-        Triple(Icons.Filled.Favorite, "Local-First Privacy", "Your data never leaves your device. Total ownership."),
-        Triple(Icons.Filled.Watch, "Works With Your Watch", "Log from your wrist and see heart rate and blood pressure from around each session."),
+        Triple(Icons.Filled.Favorite, "Local-First Privacy", "Your data stays on your device unless you connect your own dashboard."),
+        Triple(Icons.Filled.Watch, "Works With Your Watch", "Log from your wrist when your phone is in another room. It syncs on its own."),
         Triple(Icons.Filled.Spa, "Gentle Insights", "Meaningful patterns shared without judgment."),
     )
     ScreenColumn(gap = 24.dp) {
@@ -605,7 +592,7 @@ fun OnboardingScreen(onBegin: () -> Unit, onImport: () -> Unit) {
             BText("  Import from a previous Bowels version", p.primary, 14.sp, FontWeight.Bold)
         }
         BText(
-            "No accounts. No cloud. Just you and your data. Starting asks for notifications and Health Connect once, so reminders and vitals work without extra setup.",
+            "No accounts. No cloud. Just you and your data. Starting asks for notifications once, so reminders work without extra setup.",
             p.onSurfaceVariant, 12.sp, FontWeight.Medium, align = TextAlign.Center, lineHeight = 17.sp,
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(p.surfaceContainerHigh).padding(horizontal = 18.dp, vertical = 14.dp),
         )

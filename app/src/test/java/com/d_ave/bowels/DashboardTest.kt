@@ -102,6 +102,18 @@ class DashboardTest {
     }
 
     @Test
+    fun `a visit logged now carries its stool type, pain and blood`() {
+        val draft = com.d_ave.bowels.data.SessionDraft(stoolType = 6, pain = "mild", blood = false)
+        val json = DashboardRecords.session(session(3, "2026-11-26T06:00:00Z", draft.answers()), zone)
+        assertEquals(
+            setOf("uuid", "time", "start_time", "end_time", "duration_seconds", "kind", "stool_type", "pain", "blood", "from", "logged_at", "zone_offset"),
+            json.keys().asSequence().toSet(),
+        )
+        assertEquals(6, json.getInt("stool_type"))
+        assertEquals("bowel", json.getString("kind"))
+    }
+
+    @Test
     fun `unknown answers travel too, bookkeeping doesn't`() {
         val json = DashboardRecords.session(session(1, "2026-11-25T05:10:00Z", mapOf("stool_type" to "5", "smell" to "strong")), zone)
         assertEquals("strong", json.getJSONObject("other").getString("smell"))

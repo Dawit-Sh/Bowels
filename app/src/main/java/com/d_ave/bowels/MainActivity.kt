@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.FileProvider
-import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.d_ave.bowels.dashboard.DashboardLink
@@ -43,7 +42,6 @@ import com.d_ave.bowels.dashboard.PairResult
 import com.d_ave.bowels.data.Screen
 import com.d_ave.bowels.data.ThemeMode
 import com.d_ave.bowels.domain.Milestone
-import com.d_ave.bowels.health.HealthConnectManager
 import com.d_ave.bowels.notify.Notifications
 import com.d_ave.bowels.share.ShareCards
 import com.d_ave.bowels.ui.AppViewModel
@@ -85,21 +83,12 @@ class MainActivity : ComponentActivity() {
     private val shareCards by lazy { ShareCards(this) }
 
     private var afterNotificationPermission: (() -> Unit)? = null
-    private var afterHealthPermission: (() -> Unit)? = null
     private var dialog by mutableStateOf<Pair<String, String>?>(null)
     private var updateOffer by mutableStateOf<UpdateChecker.Release?>(null)
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         afterNotificationPermission?.invoke()
         afterNotificationPermission = null
-    }
-
-    private val healthPermission = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) {
-        app.prefs.healthConnectAsked = true
-        viewModel.refreshConnections()
-        if (viewModel.state.value.screen == Screen.Questions) viewModel.fetchDraftVitals()
-        afterHealthPermission?.invoke()
-        afterHealthPermission = null
     }
 
     private val legacyStoragePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -152,28 +141,8 @@ class MainActivity : ComponentActivity() {
         } else then()
     }
 
-    private fun connectHealth(then: () -> Unit = {}) {
-        when (app.healthConnect.status()) {
-            HealthConnectManager.Status.Available -> {
-                afterHealthPermission = then
-                healthPermission.launch(app.healthConnect.permissions)
-            }
-            HealthConnectManager.Status.NeedsInstall, HealthConnectManager.Status.NeedsUpdate -> {
-                runCatching { startActivity(app.healthConnect.installIntent()) }
-                    .onFailure { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${HealthConnectManager.PROVIDER}"))) }
-                then()
-            }
-            HealthConnectManager.Status.Unsupported -> then()
-        }
-    }
-
-    /** Begin: notifications, then Health Connect (when it's already on the phone), then home. */
-    private fun beginOnboarding() {
-        withNotificationPermission {
-            if (app.healthConnect.status() == HealthConnectManager.Status.Available) connectHealth { viewModel.completeOnboarding() }
-            else viewModel.completeOnboarding()
-        }
-    }
+    /** Begin: notifications, then home. */
+    private fun beginOnboarding() = withNotificationPermission { viewModel.completeOnboarding() }
 
     // Import / export.
 
@@ -198,7 +167,7 @@ class MainActivity : ComponentActivity() {
                 val content = withContext(Dispatchers.IO) { contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() } }
                 viewModel.importJson(content)
             }.onSuccess { s ->
-                dialog = "Import complete" to "${s.importedSessions} sessions imported, ${s.skippedSessions} duplicates skipped, ${s.importedHealthDays} health days merged."
+                dialog = "Import complete" to "${s.importedSessions} sessions imported, ${s.skippedSessions} duplicates skipped."
             }.onFailure { dialog = "Import failed" to "The selected file is not a valid Bowels archive." }
         }
     }
@@ -386,18 +355,13 @@ class MainActivity : ComponentActivity() {
                     setScreen = viewModel::setScreen,
                     startSession = { withNotificationPermission(viewModel::startSession) },
                     quickLog = viewModel::quickLog,
-                    saveHealth = viewModel::saveDailyHealth,
-                    connectHealth = { connectHealth() },
                     installOnWatch = viewModel::installOnWatch,
                     dismissWatch = viewModel::dismissWatchPrompt,
                     markWatchInstalled = viewModel::markWatchInstalled,
                 ),
             )
             Screen.Active -> ActiveSessionScreen(state.draft, viewModel::updateDraft, onStart = { withNotificationPermission(viewModel::startSession) }, onFinish = viewModel::finishSession, onCancel = viewModel::cancelSession)
-            Screen.Questions -> QuestionsScreen(
-                state.draft, state.ownHealth, state.ownFilledToday, state.connections,
-                QuestionActions(viewModel::updateDraft, viewModel::setKind, viewModel::setManualVitals, { connectHealth() }, viewModel::saveQuestions),
-            )
+            Screen.Questions -> QuestionsScreen(state.draft, QuestionActions(viewModel::updateDraft, viewModel::saveQuestions))
             Screen.History -> HistoryScreen(state.sessions, onExport = ::exportData, onImport = { importDocument.launch(arrayOf("application/json", "text/json", "text/plain", "*/*")) }, onOpen = viewModel::openSession)
             Screen.Session -> state.sessionDetail?.let { SessionDetailScreen(it) }
             Screen.Analytics -> state.analytics?.let { AnalyticsScreen(it, state.insights, onGuidance = { viewModel.setScreen(Screen.Health) }) }
@@ -424,7 +388,6 @@ class MainActivity : ComponentActivity() {
                     setBackground = viewModel::setBackground,
                     setReminderTimes = viewModel::setReminderTimes,
                     setRemindersOn = { on -> if (on) withNotificationPermission { viewModel.setRemindersOn(true) } else viewModel.setRemindersOn(false) },
-                    connectHealth = { connectHealth() },
                     installOnWatch = viewModel::installOnWatch,
                     checkUpdates = ::checkUpdates,
                     recheckWatch = viewModel::recheckWatch,

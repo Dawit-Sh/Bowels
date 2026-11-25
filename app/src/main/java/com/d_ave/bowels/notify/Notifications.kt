@@ -86,7 +86,7 @@ object Notifications {
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(0xFF56642B.toInt())
 
-    fun showDailyReminder(context: Context, text: String = "Log today's rhythm and health check in under a minute.") = post(
+    fun showDailyReminder(context: Context, text: String = "No visit logged today yet. Tap to log one when it happens.") = post(
         context, ID_DAILY,
         base(context, CHANNEL_REMINDERS)
             .setContentTitle("Bowels check-in")
@@ -140,14 +140,11 @@ object Notifications {
 
     fun dismissSession(context: Context) = NotificationManagerCompat.from(context).cancel(ID_SESSION)
 
-    fun showWatchSessionSaved(context: Context, durationSeconds: Long, heartRate: Int?) = post(
+    fun showWatchSessionSaved(context: Context, durationSeconds: Long) = post(
         context, ID_SESSION + 10,
         base(context, CHANNEL_SESSION)
             .setContentTitle("Session from your watch saved")
-            .setContentText(buildString {
-                append("${durationSeconds / 60}m ${durationSeconds % 60}s")
-                if (heartRate != null) append(" · heart rate $heartRate bpm")
-            })
+            .setContentText("${durationSeconds / 60}m ${durationSeconds % 60}s")
             .setContentIntent(openIntent(context, Screen.History.name, ID_SESSION + 10))
             .setAutoCancel(true),
     )
