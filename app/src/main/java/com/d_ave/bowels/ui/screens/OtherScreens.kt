@@ -57,6 +57,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
@@ -96,6 +97,7 @@ import com.d_ave.bowels.domain.milestones
 import com.d_ave.bowels.domain.nextMilestone
 import com.d_ave.bowels.health.HealthConnectManager
 import com.d_ave.bowels.ui.Connections
+import com.d_ave.bowels.dashboard.DashboardStatus
 import com.d_ave.bowels.ui.components.BCard
 import com.d_ave.bowels.ui.components.BText
 import com.d_ave.bowels.ui.components.ChipRow
@@ -326,15 +328,34 @@ class SettingsActions(
     val markWatchInstalled: () -> Unit,
 )
 
+class DashboardActions(
+    val scan: () -> Unit,
+    val paste: () -> Unit,
+    val sendNow: () -> Unit,
+    val disconnect: () -> Unit,
+)
+
 private val reminderFormat = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
+private val sentFormat = DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.getDefault())
 
 @Composable
-fun SettingsScreen(settings: AppSettings, connections: Connections, version: String, actions: SettingsActions) {
+fun SettingsScreen(
+    settings: AppSettings,
+    connections: Connections,
+    version: String,
+    dashboard: DashboardStatus,
+    dashboardActions: DashboardActions,
+    actions: SettingsActions,
+) {
     val p = LocalPalette.current
     // null: closed. -1: adding a new time. Otherwise the index being changed.
     var editing by remember { mutableStateOf<Int?>(null) }
     ScreenColumn {
-        SectionTitle("Settings", "Look, reminders and connections. Everything stays on this phone.")
+        SectionTitle(
+            "Settings",
+            if (dashboard.link == null) "Look, reminders and connections. Everything stays on this phone."
+            else "Look, reminders and connections. Your logs also go to your own dashboard.",
+        )
         BCard(Modifier.fillMaxWidth()) {
             BText("Theme", p.onSurface, 20.sp, FontWeight.Bold)
             ChipRow(ThemeMode.entries, { settings.themeMode == it }, { it.key }, actions.setTheme)
@@ -420,6 +441,7 @@ fun SettingsScreen(settings: AppSettings, connections: Connections, version: Str
                 }
             }
         }
+        DashboardCard(dashboard, dashboardActions)
         BCard(Modifier.fillMaxWidth()) {
             BText("App Updates", p.onSurface, 20.sp, FontWeight.Bold)
             BText("You're on $version. Check GitHub for the latest version.", p.onSurfaceVariant, lineHeight = 20.sp)
@@ -499,6 +521,47 @@ private fun ConnectionRow(icon: ImageVector, title: String, body: String, action
         }
         if (action != null) {
             BText(action, p.onPrimary, 13.sp, FontWeight.Bold, modifier = Modifier.clip(CircleShape).background(p.primary).clickable(onClick = onAction).padding(horizontal = 14.dp, vertical = 8.dp))
+        }
+    }
+}
+
+/**
+ * Your own dashboard: a Life Dashboard receiver (such as Hibi) on a server you run. Off until its
+ * pairing code is scanned; then every visit and daily check goes there on its own.
+ */
+@Composable
+private fun DashboardCard(status: DashboardStatus, actions: DashboardActions) {
+    val p = LocalPalette.current
+    val link = status.link
+    BCard(Modifier.fillMaxWidth()) {
+        BText("Your Dashboard", p.onSurface, 20.sp, FontWeight.Bold)
+        if (link == null) {
+            BText(
+                "Send your visits and daily checks to a Life Dashboard receiver on your own server, such as Hibi, " +
+                    "to see them next to your sleep, food and mood. Open its pairing page and scan the code.",
+                p.onSurfaceVariant, 13.sp, lineHeight = 18.sp,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                BText("Scan code", p.onPrimary, 13.sp, FontWeight.Bold, modifier = Modifier.clip(CircleShape).background(p.primary).clickable(onClick = actions.scan).padding(horizontal = 14.dp, vertical = 8.dp))
+                BText("Paste link", p.primary, 13.sp, FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable(onClick = actions.paste).padding(vertical = 6.dp))
+            }
+        } else {
+            ConnectionRow(
+                Icons.Filled.Dns, link.name ?: link.host,
+                when {
+                    status.sending -> "Sending..."
+                    status.lastProblem != null -> status.lastProblem
+                    status.waiting > 0 && status.lastSentAt == null -> "${status.waiting} logs to send. They go once the phone can reach ${link.host}."
+                    status.waiting > 0 -> "${status.waiting} new to send, once the phone can reach ${link.host}."
+                    status.lastSentAt != null -> "Up to date. Last sent ${status.lastSentAt.atZone(java.time.ZoneId.systemDefault()).format(sentFormat)}."
+                    else -> "Connected."
+                },
+                action = null, onAction = {},
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                BText("Send now", p.primary, 13.sp, FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable(onClick = actions.sendNow).padding(vertical = 6.dp))
+                BText("Disconnect", p.onSurfaceVariant, 13.sp, FontWeight.Bold, modifier = Modifier.clip(CircleShape).clickable(onClick = actions.disconnect).padding(vertical = 6.dp))
+            }
         }
     }
 }

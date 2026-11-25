@@ -44,8 +44,9 @@ Log sessions in one tap, from your phone or your watch, see your heart rate and 
 | **Weekly Wrapped** | Your week as a story-sized image to share or save |
 | **Milestones and achievements** | Day milestones and 24 achievements to earn and share |
 | **Backups** | Export and import a JSON archive (2.x backups import too) |
+| **Your own dashboard** | Optional: send every session and daily check to a [Life Dashboard](https://github.com/owen282000/life-dashboard-stack) receiver on your own server, to see them next to your sleep, food and mood. Scan its pairing code once; it sends on its own whenever the phone can reach it |
 
-Everything is stored on the device. There is no account and no server.
+Everything is stored on the device. There is no account and no server, unless you connect your own dashboard.
 
 <img src="docs/screenshots/share-weekly.png" width="220" alt="A shared Weekly Wrapped image" />
 
@@ -103,6 +104,7 @@ Once Bowels is on the Play Store (an internal testing track is enough), the phon
 ```text
 .
 |-- app/        Phone app (Jetpack Compose)
+|   |-- dashboard/  Optional sending to your own Life Dashboard receiver
 |   |-- data/       SQLite, repository, backups, local prefs
 |   |-- domain/     Rhythm (next-visit model), Forecast (on-device outlook model), analytics,
 |   |               patterns, guidance and research, achievements, session details, content
@@ -120,6 +122,8 @@ Once Bowels is on the Play Store (an internal testing track is enough), the phon
 **Watch sync.** The watch saves each finished session as a Wearable Data Layer item (`/bowels/session/<id>`). Google Play services keeps it on the watch and delivers it whenever the phone is reachable. The phone's `WatchSyncService` saves it (de-duplicated by id), looks up blood pressure in Health Connect, then deletes the item, which tells the watch it's synced.
 
 **Vitals** are stored as ordinary session answers (`hr_avg`, `hr_min`, `hr_max`, `bp_systolic`, `bp_diastolic`, `bp_time` and their sources), so backups carry them with no format change. Watches and cuffs often sync to Health Connect late, so the app checks recent sessions again for a few hours.
+
+**Your own dashboard.** Off until you scan the pairing code on a Life Dashboard receiver's `/pair` page (Settings, Your Dashboard). Then each session goes as a `bowels_sessions` record and each daily check as a `bowels_daily_checks` record, signed with HMAC-SHA256 like the Life Dashboard apps' payloads. Their uuids come from the data (a session's kind and start, a check's day), so a reinstall or an import sends the same records again rather than new ones. The app remembers a fingerprint of what the receiver has and sends only what's new or changed: a few seconds after a change, when the app opens, and hourly. A server on a private address is only tried on a network with a route to it (your home Wi-Fi or a VPN), so nothing is lost while you're out. The pairing is kept in no-backup storage, so its secret never goes into a cloud backup.
 
 **Upgrading from 2.x.** The app opens the same SQLite file the Expo app used (`files/SQLite/bowels.db`) and brings over the running session and announced milestones from AsyncStorage.
 

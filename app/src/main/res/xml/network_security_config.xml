@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain HTTP is allowed at the platform level only for a dashboard on your own network (a home
+  server like http://192.168.1.10:8080). The app itself sends plain HTTP to nothing else: a pairing
+  code with an http:// address that isn't private is refused (DashboardLink.usableUrl), and
+  everything else the app opens is HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

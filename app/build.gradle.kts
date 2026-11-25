@@ -88,6 +88,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.health.connect)
     implementation(libs.glance.appwidget)
+    implementation(libs.work.runtime)
+    implementation(libs.play.services.code.scanner)
     implementation(libs.play.services.wearable)
     implementation(libs.wear.remote.interactions)
     implementation(libs.concurrent.futures.ktx)

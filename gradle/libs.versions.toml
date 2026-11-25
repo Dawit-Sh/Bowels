@@ -14,6 +14,8 @@ wearOngoing = "1.0.0"
 wearRemote = "1.1.0"
 concurrentFutures = "1.2.0"
 glance = "1.1.1"
+work = "2.10.0"
+codeScanner = "16.1.0"
 junit = "4.13.2"
 robolectric = "4.14.1"
 
@@ -25,6 +27,9 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "lifecycle" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
+work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+# Scanning a dashboard's pairing code: Google's scanner UI, so Bowels needs no camera permission.
+play-services-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "codeScanner" }
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }

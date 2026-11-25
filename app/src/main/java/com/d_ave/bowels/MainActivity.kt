@@ -37,6 +37,9 @@ import androidx.core.content.FileProvider
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.d_ave.bowels.dashboard.DashboardLink
+import com.d_ave.bowels.dashboard.DashboardSync
+import com.d_ave.bowels.dashboard.PairResult
 import com.d_ave.bowels.data.Screen
 import com.d_ave.bowels.data.ThemeMode
 import com.d_ave.bowels.domain.Milestone
@@ -59,6 +62,7 @@ import com.d_ave.bowels.ui.screens.OnboardingScreen
 import com.d_ave.bowels.ui.screens.QuestionActions
 import com.d_ave.bowels.ui.screens.QuestionsScreen
 import com.d_ave.bowels.ui.screens.SessionDetailScreen
+import com.d_ave.bowels.ui.screens.DashboardActions
 import com.d_ave.bowels.ui.screens.SettingsActions
 import com.d_ave.bowels.ui.screens.SettingsScreen
 import com.d_ave.bowels.ui.screens.WeeklyWrappedScreen
@@ -67,6 +71,9 @@ import com.d_ave.bowels.ui.theme.LocalPalette
 import com.d_ave.bowels.ui.theme.Palette
 import com.d_ave.bowels.ui.theme.buildPalette
 import com.d_ave.bowels.update.UpdateChecker
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -133,6 +140,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshConnections()
+        if (app.dashboard.isPaired) DashboardSync.kick(this)
     }
 
     // Permissions, asked in context so nobody has to visit system settings.
@@ -246,6 +254,45 @@ class MainActivity : ComponentActivity() {
                 val bitmap = withContext(Dispatchers.Default) { shareCards.milestone(m, days, currentPalette()) }
                 startActivity(shareCards.shareIntent(bitmap, "bowels-milestone-${m.days}", "Share your milestone"))
             }.onFailure { dialog = "Share failed" to "Unable to share this milestone." }
+        }
+    }
+
+    // A Life Dashboard receiver (such as Hibi): paired by scanning the code on its /pair page.
+
+    private fun scanDashboardCode() {
+        val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+        GmsBarcodeScanning.getClient(this, options).startScan()
+            .addOnSuccessListener { pairDashboard(it.rawValue) }
+            .addOnFailureListener { Toast.makeText(this, "The scanner isn't available. Copy the pairing link and tap Paste link.", Toast.LENGTH_LONG).show() }
+    }
+
+    private fun sendToDashboard() {
+        val host = app.dashboard.status.value.link?.host ?: return
+        if (!app.dashboard.canReach()) {
+            Toast.makeText(this, "$host can't be reached from this network. Your logs wait and go once it can.", Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch { app.dashboard.send() }
+    }
+
+    private fun pasteDashboardLink() {
+        val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+        pairDashboard(clipboard?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString())
+    }
+
+    private fun pairDashboard(text: String?) {
+        val link = DashboardLink.parse(text)
+        if (link == null) {
+            Toast.makeText(this, "That isn't a dashboard pairing code.", Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            val message = when (app.dashboard.pair(link)) {
+                PairResult.Confirmed -> "Connected to ${link.name ?: link.host}. Sending your history now."
+                PairResult.NotReachable -> "Saved. ${link.host} can't be reached from here; it sends once it can."
+                PairResult.WrongSecret -> "${link.host} refused this code. Open its pairing page again and rescan."
+            }
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -364,6 +411,13 @@ class MainActivity : ComponentActivity() {
             Screen.Health -> HealthInfoScreen(state.guidance)
             Screen.Settings -> SettingsScreen(
                 state.settings, state.connections, BuildConfig.VERSION_NAME,
+                app.dashboard.status.collectAsStateWithLifecycle().value,
+                DashboardActions(
+                    scan = ::scanDashboardCode,
+                    paste = ::pasteDashboardLink,
+                    sendNow = ::sendToDashboard,
+                    disconnect = { lifecycleScope.launch { app.dashboard.unpair() } },
+                ),
                 SettingsActions(
                     setTheme = viewModel::setThemeMode,
                     setAccent = viewModel::setAccent,

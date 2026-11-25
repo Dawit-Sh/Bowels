@@ -1,6 +1,7 @@
 package com.d_ave.bowels
 
 import android.app.Application
+import com.d_ave.bowels.dashboard.DashboardSync
 import com.d_ave.bowels.data.BowelsDatabase
 import com.d_ave.bowels.data.Prefs
 import com.d_ave.bowels.data.Repository
@@ -37,6 +38,8 @@ class BowelsApp : Application() {
         private set
     lateinit var watch: WatchConnector
         private set
+    lateinit var dashboard: DashboardSync
+        private set
 
     private val enrichLock = Mutex()
 
@@ -51,11 +54,29 @@ class BowelsApp : Application() {
         prefs = Prefs(this).also { it.migrateFromAsyncStorage() }
         healthConnect = HealthConnectManager(this)
         watch = WatchConnector(this)
+        dashboard = DashboardSync(this)
         Notifications.createChannels(this)
 
         appScope.launch { repository.reload() }
         watchMilestones()
         keepWidgetsFresh()
+        keepDashboardFed()
+    }
+
+    /**
+     * Once a dashboard is paired: what's new goes a few seconds after any change (a log on the phone
+     * or the watch, vitals filled in later, an import) and when the app starts, with an hourly fallback.
+     */
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    private fun keepDashboardFed() {
+        appScope.launch {
+            repository.data.filterNotNull().debounce(1500).collect {
+                if (!dashboard.isPaired) return@collect
+                DashboardSync.schedule(this@BowelsApp)
+                dashboard.refresh()
+                if (dashboard.status.value.waiting > 0) DashboardSync.kick(this@BowelsApp)
+            }
+        }
     }
 
     /** Widgets redraw a moment after the data changes (a log, an import, a new theme). */
